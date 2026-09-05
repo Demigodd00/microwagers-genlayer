@@ -86,13 +86,13 @@ Add these recommended supporting links:
 2. Evidence type `Other` — live product
    `https://microwagers.vercel.app`
 3. Evidence type `GitHub File` — exact intelligent-contract source
-   `https://github.com/Demigodd00/microwagers-genlayer/blob/main/contracts/micro_wagers.py`
+   `https://github.com/Demigodd00/microwagers-genlayer/blob/f9bd31ef33a24c6a9514afeef58215629ab3d160/contracts/micro_wagers.py`
 4. Evidence type `GitHub File` — exact StudioNet deployment receipt
-   `https://github.com/Demigodd00/microwagers-genlayer/blob/main/deployments/micro_wagers_studionet.json`
+   `https://github.com/Demigodd00/microwagers-genlayer/blob/f9bd31ef33a24c6a9514afeef58215629ab3d160/deployments/micro_wagers_studionet.json`
 5. Evidence type `GitHub File` — exact-address acceptance journal
-   `https://github.com/Demigodd00/microwagers-genlayer/blob/main/deployments/micro_wagers_acceptance.json`
+   `https://github.com/Demigodd00/microwagers-genlayer/blob/f9bd31ef33a24c6a9514afeef58215629ab3d160/deployments/micro_wagers_acceptance.json`
 6. Evidence type `GitHub File` — final release notes
-   `https://github.com/Demigodd00/microwagers-genlayer/blob/main/docs/MICROWAGERS_RELEASE.md`
+   `https://github.com/Demigodd00/microwagers-genlayer/blob/f9bd31ef33a24c6a9514afeef58215629ab3d160/docs/MICROWAGERS_RELEASE.md`
 
 ## Final checks before submission
 

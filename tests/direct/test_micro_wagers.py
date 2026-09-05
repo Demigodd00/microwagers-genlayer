@@ -622,4 +622,3 @@ def test_list_and_stats_views(direct_vm, direct_deploy, direct_alice, direct_bob
     assert stats["max_source_chars"] == "8000"
     assert stats["source_policy"] == "STRICT_UTF8_SHA256_VALIDATOR_FETCH_AND_SNAPSHOT"
 
-
