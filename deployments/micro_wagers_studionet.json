@@ -1,0 +1,37 @@
+{
+  "contract": "MicroWagers",
+  "version": "1.2.1-studionet",
+  "network": "studionet",
+  "address": "0xbe655aa17d1b4d31021791F0640a8c4677A11899",
+  "transaction_hash": "0xe096d44ab3ad194760cc71c9c1c22331eaebffcdf94ac9e4ab2455965a7ff7e5",
+  "deployer": "0x1adf37F016384714F683CaC4d0a261A6d4e27033",
+  "deployer_role": "deployment_and_zero_fee_treasury_only_no_admin_controls",
+  "treasury": "0x1adf37F016384714F683CaC4d0a261A6d4e27033",
+  "constructor_args": {
+    "fee_bps": 0,
+    "appeal_window_secs": 300,
+    "resolution_timeout_secs": 600
+  },
+  "source_sha256": "3c786a3e74a6579b66438782e5443d1981c4e3fcef76d5b4ce818ad4835dfe46",
+  "runner_dependency": "# { \"Depends\": \"py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6\" }",
+  "preflight_skipped": false,
+  "receipt_status": "FINALIZED",
+  "execution_result": "SUCCESS",
+  "verified_source_and_config": true,
+  "deployed_stats": {
+    "appeal_window_secs": "300",
+    "experimental": true,
+    "fee_bps": "0",
+    "max_page_size": "25",
+    "max_source_bytes": "100000",
+    "max_source_chars": "8000",
+    "resolution_timeout_secs": "600",
+    "source_policy": "STRICT_UTF8_SHA256_VALIDATOR_FETCH_AND_SNAPSHOT",
+    "total_created": "0",
+    "total_settled": "0",
+    "treasury": "0x1adf37F016384714F683CaC4d0a261A6d4e27033",
+    "version": "1.2.1-studionet"
+  },
+  "deployed_at": "2026-09-04T22:06:34.391574+00:00",
+  "previous_address": "0xe7B8E25a7608176168d4cfA84691B53d1715bADE"
+}

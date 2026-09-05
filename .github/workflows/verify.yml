@@ -1,0 +1,55 @@
+name: Verify MicroWagers
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract-and-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_MICROWAGERS_ADDRESS: "0xbe655aa17d1b4d31021791F0640a8c4677A11899"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install contract test toolchain
+        run: pip install -r requirements-dev.txt
+      - name: Prepare pinned GenVM runner
+        run: python scripts/prepare_gltest_runner.py
+      - name: Run exact-release gate
+        run: python scripts/check_micro_wagers_release.py --skip-web --require-hosting
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/microwagers-web
+    env:
+      NEXT_PUBLIC_MICROWAGERS_ADDRESS: "0xbe655aa17d1b4d31021791F0640a8c4677A11899"
+      NEXT_PUBLIC_NETWORK_NAME: StudioNet
+      NEXT_PUBLIC_SITE_URL: https://microwagers.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/microwagers-web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: pnpm audit --prod --audit-level=high

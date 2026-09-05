@@ -1,0 +1,52 @@
+{
+  "product": "MicroWagers",
+  "project_name": "microwagers",
+  "vercel_team": "demi17",
+  "production_url": "https://microwagers.vercel.app",
+  "deployment_url": "https://microwagers-39ousjvm7-demi17.vercel.app",
+  "deployment_id": "dpl_GyMk3AvTFtkUcMcoPB5URcQrZZmm",
+  "source_repository": "https://github.com/Demigodd00/demigodd00-genlayer-apps",
+  "source_branch": "main",
+  "source_commit": "c3a083804004871d37d65bb6f2f1370753cfc9de",
+  "root_directory": "apps/microwagers-web",
+  "framework": "Next.js",
+  "node_engine": "22.x",
+  "contract_address": "0xbe655aa17d1b4d31021791F0640a8c4677A11899",
+  "network": "StudioNet",
+  "public_environment": {
+    "NEXT_PUBLIC_MICROWAGERS_ADDRESS": "0xbe655aa17d1b4d31021791F0640a8c4677A11899",
+    "NEXT_PUBLIC_NETWORK_NAME": "StudioNet"
+  },
+  "secret_environment_uploaded": false,
+  "monorepo_build_scope": {
+    "include_files_outside_root": false,
+    "skip_unaffected_deployments": true,
+    "ignored_build_step": "git diff HEAD^ HEAD --quiet -- \":(top)apps/microwagers-web\""
+  },
+  "provenance_note": "This record identifies the verified V1.2.1 application-code deployment. Later evidence-only commits do not change the shipped app or contract source.",
+  "verification": {
+    "home_status": 200,
+    "status_page_status": 200,
+    "health_status": 200,
+    "health_ready_for_studionet_testing": true,
+    "robots_status": 200,
+    "sitemap_status": 200,
+    "canonical_url": "https://microwagers.vercel.app/",
+    "desktop_contract_read": true,
+    "settled_audit_trail_checked": true,
+    "timeout_refund_state_checked": true,
+    "source_wording_checked": true,
+    "unassigned_participant_roles_hidden": true,
+    "security_headers_checked": true,
+    "durable_workflow_routes_checked": true,
+    "legacy_reviewer_link_redirects_checked": true,
+    "multi_wallet_discovery_tests_passed": true,
+    "github_ci": {
+      "conclusion": "success",
+      "commit": "c3a083804004871d37d65bb6f2f1370753cfc9de",
+      "release_gate_url": "https://github.com/Demigodd00/demigodd00-genlayer-apps/actions/runs/33923998604",
+      "repository_tests_url": "https://github.com/Demigodd00/demigodd00-genlayer-apps/actions/runs/33923998655"
+    }
+  },
+  "verified_at": "2026-09-04T22:36:41Z"
+}
