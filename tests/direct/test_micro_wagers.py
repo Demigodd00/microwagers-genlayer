@@ -1,5 +1,6 @@
 ﻿import json
 import hashlib
+import sys
 from datetime import datetime, timezone
 
 import pytest
@@ -29,13 +30,25 @@ def _vm_time(unix: int) -> str:
     return datetime.fromtimestamp(unix, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _warp_to(direct_vm, unix: int) -> None:
+    timestamp = _vm_time(unix)
+    direct_vm.warp(timestamp)
+
+    # genlayer-test 0.29.2's published warp() does not refresh the SDK's
+    # cached message_raw datetime. Keep the compatibility update here so
+    # time-dependent contract tests behave identically on clean CI runners.
+    sdk_gl = sys.modules.get("genlayer.gl")
+    assert sdk_gl is not None and sdk_gl.message_raw is not None
+    sdk_gl.message_raw["datetime"] = timestamp
+
+
 def _warp_past(deadline_unix: int, direct_vm) -> None:
-    direct_vm.warp(_vm_time(deadline_unix + 5))
+    _warp_to(direct_vm, deadline_unix + 5)
 
 
 def _warp_past_appeal(contract, wager_id: str, direct_vm) -> None:
     resolved = int(contract.get_wager(wager_id)["resolved_at_unix"])
-    direct_vm.warp(_vm_time(resolved + APPEAL_WINDOW + 1))
+    _warp_to(direct_vm, resolved + APPEAL_WINDOW + 1)
 
 
 def _mock_verdict(direct_vm, outcome: str, confidence: int = 80, reason: str = "evidence supports this") -> None:
@@ -138,7 +151,7 @@ def test_create_rejects_identical_sides(direct_vm, direct_deploy, direct_alice):
 
 def test_create_rejects_near_deadline(direct_vm, direct_deploy, direct_alice):
     contract = direct_deploy("contracts/micro_wagers.py")
-    direct_vm.warp(_vm_time(TEST_NOW_UNIX))
+    _warp_to(direct_vm, TEST_NOW_UNIX)
     direct_vm.sender = direct_alice
     direct_vm.value = STAKE
     with pytest.raises(Exception, match="deadline must be at least"):
@@ -370,7 +383,7 @@ def test_resolution_timeout_allows_permissionless_two_party_refund(
         contract.void_unresolved(wid)
     assert contract.get_wager(wid)["status"] == "LIVE"
 
-    direct_vm.warp(_vm_time(deadline + 301))
+    _warp_to(direct_vm, deadline + 301)
     direct_vm.sender = direct_charlie
     contract.void_unresolved(wid)
     wager = contract.get_wager(wid)
