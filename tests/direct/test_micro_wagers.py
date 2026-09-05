@@ -25,15 +25,17 @@ def _deadline(seconds_ahead: int) -> int:
     return TEST_NOW_UNIX + seconds_ahead
 
 
+def _vm_time(unix: int) -> str:
+    return datetime.fromtimestamp(unix, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _warp_past(deadline_unix: int, direct_vm) -> None:
-    target = datetime.fromtimestamp(deadline_unix + 5, tz=timezone.utc).isoformat()
-    direct_vm.warp(target)
+    direct_vm.warp(_vm_time(deadline_unix + 5))
 
 
 def _warp_past_appeal(contract, wager_id: str, direct_vm) -> None:
     resolved = int(contract.get_wager(wager_id)["resolved_at_unix"])
-    target = datetime.fromtimestamp(resolved + APPEAL_WINDOW + 1, tz=timezone.utc).isoformat()
-    direct_vm.warp(target)
+    direct_vm.warp(_vm_time(resolved + APPEAL_WINDOW + 1))
 
 
 def _mock_verdict(direct_vm, outcome: str, confidence: int = 80, reason: str = "evidence supports this") -> None:
@@ -136,9 +138,7 @@ def test_create_rejects_identical_sides(direct_vm, direct_deploy, direct_alice):
 
 def test_create_rejects_near_deadline(direct_vm, direct_deploy, direct_alice):
     contract = direct_deploy("contracts/micro_wagers.py")
-    direct_vm.warp(
-        datetime.fromtimestamp(TEST_NOW_UNIX, tz=timezone.utc).isoformat()
-    )
+    direct_vm.warp(_vm_time(TEST_NOW_UNIX))
     direct_vm.sender = direct_alice
     direct_vm.value = STAKE
     with pytest.raises(Exception, match="deadline must be at least"):
@@ -370,7 +370,7 @@ def test_resolution_timeout_allows_permissionless_two_party_refund(
         contract.void_unresolved(wid)
     assert contract.get_wager(wid)["status"] == "LIVE"
 
-    direct_vm.warp(datetime.fromtimestamp(deadline + 301, tz=timezone.utc).isoformat())
+    direct_vm.warp(_vm_time(deadline + 301))
     direct_vm.sender = direct_charlie
     contract.void_unresolved(wid)
     wager = contract.get_wager(wid)
