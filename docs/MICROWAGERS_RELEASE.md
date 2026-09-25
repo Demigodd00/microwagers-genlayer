@@ -15,8 +15,9 @@ MicroWagers by demigodd00 is a peer-to-peer prediction app on GenLayer StudioNet
 | Interface review fixes | App `1.3.2`, same contract and evidence |
 | Deployment transaction | `0x6eb768a648e7fa378676695451fb45b46b4084a9b9b2cf0d5e57472ac0b9b962` |
 | Source SHA-256 | `2ed0386b511764e90c9c79f34aefc67cbb383a7d889051bcf901fab7e4e736d6` |
-| Vercel production deployment | `dpl_vTJCsg9oUc4uRwQw8qnfroAPVJsj` |
-| Milestone source commit | `42cb16e6f45186329259debb7359b00efdf6b1ce` |
+| Vercel production deployment | `dpl_AbCzF5enCwnhXHVUshC9HKE6ma8t` |
+| Review-fix app source commit | `a848de9a45f3655ac6ce2e9574be480bbd7f72b8` |
+| Original contract/evidence source commit | `42cb16e6f45186329259debb7359b00efdf6b1ce` |
 | Fee / appeal / unresolved timeout | `0 bps / 300 seconds / 600 seconds` |
 | Acceptance | `PASS` |
 
@@ -73,10 +74,12 @@ No wallet connection is required to inspect these completed records. A wallet is
 - GenVM lint and validation: 3 checks passed.
 - Direct contract tests: 43 passed.
 - Frontend tests: 36 passed, including actual saved StudioNet cancellation data and return-value rejection cases. TypeScript check and Next.js production build passed.
-- Offline acceptance-runner and submission-guide tests: 9 checks, including interrupted checkpoints, delayed native transfer finality, description length, and public evidence routing. These do not submit chain transactions.
+- Offline acceptance-runner and submission-guide tests: 9 passed, including interrupted checkpoints, delayed native transfer finality, description length, and public evidence routing. These do not submit chain transactions.
 - Read-only receipt replay: all 21 historical transactions passed against raw, SDK-normalized, and simplified receipts. Valid action returns are accepted; refund/rejection results are not confused with action success. Run `pnpm verify:receipts` in the web app to repeat this read-only check.
 - Production dependency audit: no known vulnerabilities.
 - Exact-address StudioNet deployment and acceptance: passed, including source/configuration verification and all claimable withdrawals.
+- Production V1.3.2 browser review: public milestone route loaded without login; w-1 showed 0.001 GEN and No taker; w-2 showed 0.002 GEN timeout credit; w-3 showed 2 / 2 agreement with original and appeal evidence. No console errors were observed on the checked market pages.
+- GitHub Actions at the deployed app commit: [both jobs passed](https://github.com/Demigodd00/microwagers-genlayer/actions/runs/36192586142). CI is offline; the `--require-hosting` release check separately verifies production health and rejects a login-redirected milestone URL.
 
 Repeat local checks with:
 

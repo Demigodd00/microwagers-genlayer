@@ -3,11 +3,14 @@
   "project_name": "microwagers",
   "vercel_team": "demi17",
   "production_url": "https://microwagers.vercel.app",
-  "deployment_url": "https://microwagers-ewpgrbe74-demi17.vercel.app",
-  "deployment_id": "dpl_vTJCsg9oUc4uRwQw8qnfroAPVJsj",
+  "deployment_url": "https://microwagers-3k7jkhrvd-demi17.vercel.app",
+  "deployment_id": "dpl_AbCzF5enCwnhXHVUshC9HKE6ma8t",
+  "public_milestone_url": "https://microwagers.vercel.app/milestone",
+  "app_release": "1.3.2",
+  "contract_release": "1.3.1-studionet",
   "source_repository": "https://github.com/Demigodd00/microwagers-genlayer",
   "source_branch": "main",
-  "source_commit": "42cb16e6f45186329259debb7359b00efdf6b1ce",
+  "source_commit": "a848de9a45f3655ac6ce2e9574be480bbd7f72b8",
   "root_directory": "apps/microwagers-web",
   "framework": "Next.js",
   "node_engine": "22.x",
@@ -19,7 +22,7 @@
   },
   "secret_environment_uploaded": false,
   "deployment_method": "Vercel Git integration production build from the dedicated MicroWagers repository",
-  "provenance_note": "Production was built from source_commit after Vercel was connected to the dedicated MicroWagers repository. The existing production domain was retained; the app now targets the separately deployed V1.3.1 contract. The previously accepted V1.2.1 contract remains deployed and preserved in deployment history.",
+  "provenance_note": "Vercel Git production build from the dedicated repository. App V1.3.2 corrects review blockers without redeploying contract V1.3.1. The original contract source and acceptance journal are unchanged. Deployment-specific Vercel URLs may require team login; reviewers should use public_milestone_url. Accepted V1.2.1 remains preserved in deployment history.",
   "verification": {
     "home_status": 200,
     "status_page_status": 200,
@@ -31,12 +34,21 @@
     "production_health_matches_release": true,
     "status_page_contract_address_matches": true,
     "all_three_reviewer_routes_return_200": true,
+    "public_milestone_without_login_redirect": true,
+    "browser_cancellation_shows_0001_and_no_taker": true,
+    "browser_settled_market_shows_two_source_agreement": true,
+    "browser_original_and_appeal_records_visible": true,
+    "frontend_tests_passed": 36,
+    "contract_tests_passed": 43,
+    "offline_runner_and_guide_tests_passed": 9,
+    "historical_receipts_replayed_read_only": 21,
     "claimable_and_appeal_ui_tests_passed": true,
     "security_headers_checked": true
   },
   "github_ci": {
     "conclusion": "success",
-    "commit": "42cb16e6f45186329259debb7359b00efdf6b1ce"
+    "commit": "a848de9a45f3655ac6ce2e9574be480bbd7f72b8",
+    "run_url": "https://github.com/Demigodd00/microwagers-genlayer/actions/runs/36192586142"
   },
-  "verified_at": "2026-09-25T20:54:16Z"
+  "verified_at": "2026-09-25T21:42:15Z"
 }

@@ -205,12 +205,17 @@ def verify_hosting(required: bool, deployment: dict | None) -> bool:
         hosting = json.loads(HOSTING_PATH.read_text(encoding="utf-8"))
         production_url = str(hosting["production_url"]).rstrip("/")
         health = get_json(production_url + "/api/health")
+        milestone_url = production_url + "/milestone"
+        with urlopen(Request(milestone_url, headers={"User-Agent": "MicroWagers-release-check"}), timeout=30) as response:
+            milestone_public = response.status == 200 and response.geturl().rstrip("/") == milestone_url
+            milestone_html = response.read().decode("utf-8")
     except (OSError, KeyError, ValueError, json.JSONDecodeError, RuntimeError) as error:
         print(f"FAIL: production verification failed: {error}")
         return False
     expected_address = str((deployment or {}).get("address", ""))
     checks = {
         "HTTPS production URL": production_url.startswith("https://"),
+        "public milestone without login redirect": milestone_public and "Milestone review" in milestone_html,
         "correct project root": hosting.get("root_directory") == "apps/microwagers-web",
         "correct source commit": re.fullmatch(r"[0-9a-f]{40}", str(hosting.get("source_commit", ""))) is not None,
         "matching contract": hosting.get("contract_address", "").lower() == expected_address.lower(),

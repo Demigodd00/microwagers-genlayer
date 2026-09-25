@@ -25,6 +25,10 @@ Attach links that identify this milestone's new deployment and code. The reposit
    https://github.com/Demigodd00/microwagers-genlayer/blob/42cb16e6f45186329259debb7359b00efdf6b1ce/deployments/micro_wagers_milestone1_v131_acceptance.json
 5. Other — public milestone walkthrough (no Vercel login)
    https://microwagers.vercel.app/milestone
+6. GitHub File — review-fix return handling in the deployed app
+   https://github.com/Demigodd00/microwagers-genlayer/blob/a848de9a45f3655ac6ce2e9574be480bbd7f72b8/apps/microwagers-web/src/lib/receipt.ts
+7. GitHub File — acceptance-runner interruption regression tests
+   https://github.com/Demigodd00/microwagers-genlayer/blob/a848de9a45f3655ac6ce2e9574be480bbd7f72b8/tests/unit/test_acceptance_resume.py
 
 ## Reviewer notes
 
