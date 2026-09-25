@@ -1,106 +1,37 @@
-# MicroWagers — Project Explorer submission
+# MicroWagers milestone contribution
 
-Use this dedicated repository as a standalone MicroWagers submission. Do not combine it with StreakPact, BountyForge, or another product.
+Use this for the existing accepted MicroWagers project's Milestone flow, not as a new Project application. The accepted V1.2.1 contract remains deployed and preserved in the repository's deployment history; this contribution documents new, verifiable work in V1.3.1.
 
-## Application date
+## Milestone form
 
-`05/09/2026`
+- Contribution date: 25/09/2026
+- Title: Dual-source adjudication and failure-safe settlement
+- Contribution type: Builder
+- Notes / description:
 
-If submitting after that date, replace it with the actual submission date.
+Shipped MicroWagers V1.3.1 as a separate StudioNet Intelligent Contract deployment. Each wager now pins two HTTPS sources on distinct hosts. GenLayer validators independently fetch both after the deadline, record source-specific findings with exact citations, and settle only when both sources agree decisively; ambiguous or unverifiable evidence refunds both sides. The release adds retryable, separately resolved appeals against frozen original snapshots, timeout recovery for pending appeals, and claimable GEN accounting so failed payable calls, refunds, and payouts cannot silently strand participant value. The app now exposes source provenance, pending appeal actions, claimable balances, and contract accounting. Exact-address acceptance passed on StudioNet with two participant wallets and an independent observer, covering creation, matching, cancellation, invalid payable refunds, dual-source resolution, appeal, payout lock, timeout refunds, and withdrawals. Final on-chain accounting showed zero escrow and zero liabilities. StudioNet test GEN has no monetary value.
 
-## 01 — Identity
+## Evidence links
 
-- Project name: `MicroWagers by demigodd00`
-- Logo upload: [`docs/assets/microwagers/microwagers-logo.png`](assets/microwagers/microwagers-logo.png)
-- Primary tag: `Prediction Markets`
-- Tag 1: `Outcome Resolution`
-- Tag 2: `Event Forecasting`
+Add the evidence types shown below. The repository is the required primary evidence; contract, release receipt, exact-address acceptance journal, and live app are supporting evidence.
 
-## 02 — One-liner
+1. Required — GitHub Repository
+   https://github.com/Demigodd00/microwagers-genlayer
+2. GenLayer Explorer Contract
+   https://explorer-studio.genlayer.com/address/0x07D4eD4B2293faE326BaF9a943Ed3a56E04D8D4a
+3. GitHub File — exact deployed Intelligent Contract source
+   https://github.com/Demigodd00/microwagers-genlayer/blob/main/contracts/micro_wagers.py
+4. GitHub File — exact deployment receipt and constructor settings
+   https://github.com/Demigodd00/microwagers-genlayer/blob/main/deployments/micro_wagers_studionet.json
+5. GitHub File — exact-address, multi-wallet acceptance journal
+   https://github.com/Demigodd00/microwagers-genlayer/blob/main/deployments/micro_wagers_milestone1_v131_acceptance.json
+6. Other — live application
+   https://microwagers.vercel.app
+7. Other — milestone release notes
+   https://github.com/Demigodd00/microwagers-genlayer/blob/main/docs/MICROWAGERS_RELEASE.md
 
-```text
-Peer-to-peer StudioNet predictions settled from public web evidence by GenLayer validator consensus.
-```
+## Reviewer notes
 
-## 03 — Description
+The contribution is distinguishable from the accepted V1.2.1 project: it deploys contract 0x07D4…8D4a with source hash 2ed0386b…e736d6, while the accepted deployment remains at 0xbe655…11899. The new acceptance journal proves the exact deployment and records three markets: w-1 cancellation, w-2 unresolved timeout refund, and w-3 decisive dual-source result plus a separately preserved appeal. Both configured sources are distinct hosts and each has its own finding and exact citation. The sources happened to return the same 559-byte Example Domain content in this test; this is disclosed in the release notes rather than presented as two different page contents.
 
-The following text is 968 characters, below the Portal's 1,000-character limit.
-
-```text
-MicroWagers by demigodd00 is a peer-to-peer prediction app on GenLayer StudioNet; test GEN has no monetary value. A creator posts a binary question, two positions, a public HTTPS source, a deadline, and a test stake; another wallet matches it. After the deadline, GenLayer validators fetch the source and use comparative consensus to decide which position it supports. The contract preserves the exact source snapshot, SHA-256 digest, outcome, confidence, reason, winner, and judgment time. A losing participant can fund one independent validator refetch, while original and appeal records remain separate and public. Decisive results settle escrow; ambiguous evidence refunds both users. Any wallet can trigger timeout recovery if adjudication does not finalize within ten minutes. No admin can choose a winner or move participant escrow. The deployed V1.2.1 flow was verified by three wallets through cancellation, matching, resolution, appeal, payout, and recovery.
-```
-
-## 04 — Demo video
-
-Leave the optional YouTube URL blank. Do not paste the website or a non-YouTube video URL into this field.
-
-## 05 — How-to
-
-### Step 1
-
-- Optional heading: `Open the settled wager`
-- Instruction: `Open https://microwagers.vercel.app/markets?wager=w-3 without connecting a wallet. Confirm it is SETTLED and APPEALED, the taker 0x3Ba5…4dEB won, the outcome is “No — the source states something different,” confidence is 90%, and the displayed pot + appeal bond is 0.003 test GEN.`
-
-### Step 2
-
-- Optional heading: `Inspect both adjudications`
-- Instruction: `In w-3, inspect the Original and Appeal cards under Immutable adjudication records. Expand Stored source snapshot in both. Confirm separate judgment times and the same 559-byte Example Domain snapshot with SHA-256 ff67a9d764d6…871a299d.`
-
-### Step 3
-
-- Optional heading: `Verify timeout recovery`
-- Instruction: `Open https://microwagers.vercel.app/markets?wager=w-2. Confirm it is VOIDED with [RESOLUTION TIMEOUT], 0.002 test GEN refunded, confidence shown as —, No action required, and no adjudication audit trail because no validator result finalized.`
-
-### Step 4
-
-- Optional heading: `Verify the release`
-- Instruction: `Open https://microwagers.vercel.app/status and the contract link below. Confirm 3 wagers created, 1 settled, 0% protocol fee, a 5m appeal window, a 10m refund timeout, no settlement controls, and contract 0xbe655aa17d1b4d31021791F0640a8c4677A11899.`
-
-## 06 — Expected verification outcome
-
-```text
-Stewards see w-3 SETTLED and APPEALED: the taker won at 90% confidence, with separate Original and Appeal records preserving the same 559-byte source snapshot and SHA-256 digest. Wager w-2 is VOIDED by timeout, refunds 0.002 test GEN, and has no adjudication record. The status page and Explorer confirm V1.2.1 at 0xbe655aa17d1b4d31021791F0640a8c4677A11899, 0% fee, 5m appeal, 10m refund timeout, and no admin settlement controls.
-```
-
-## Contract deployments
-
-- Contract link 1: `https://explorer-studio.genlayer.com/address/0xbe655aa17d1b4d31021791F0640a8c4677A11899`
-
-Do not add the previous MicroWagers address. This is the verified V1.2.1 StudioNet deployment.
-
-## 07 — Project links
-
-- Website: `https://microwagers.vercel.app`
-- GitHub: `https://github.com/Demigodd00/microwagers-genlayer`
-
-## Evidence and supporting information
-
-Paste this into the required evidence field and let the Portal detect `GitHub Repository`:
-
-`https://github.com/Demigodd00/microwagers-genlayer`
-
-Add these recommended supporting links:
-
-1. Evidence type `GenLayer Explorer Contract`
-   `https://explorer-studio.genlayer.com/address/0xbe655aa17d1b4d31021791F0640a8c4677A11899`
-2. Evidence type `Other` — live product
-   `https://microwagers.vercel.app`
-3. Evidence type `GitHub File` — exact intelligent-contract source
-   `https://github.com/Demigodd00/microwagers-genlayer/blob/f9bd31ef33a24c6a9514afeef58215629ab3d160/contracts/micro_wagers.py`
-4. Evidence type `GitHub File` — exact StudioNet deployment receipt
-   `https://github.com/Demigodd00/microwagers-genlayer/blob/f9bd31ef33a24c6a9514afeef58215629ab3d160/deployments/micro_wagers_studionet.json`
-5. Evidence type `GitHub File` — exact-address acceptance journal
-   `https://github.com/Demigodd00/microwagers-genlayer/blob/f9bd31ef33a24c6a9514afeef58215629ab3d160/deployments/micro_wagers_acceptance.json`
-6. Evidence type `GitHub File` — final release notes
-   `https://github.com/Demigodd00/microwagers-genlayer/blob/f9bd31ef33a24c6a9514afeef58215629ab3d160/docs/MICROWAGERS_RELEASE.md`
-
-## Final checks before submission
-
-1. Confirm the preview says `MicroWagers by demigodd00`, not StreakPact or BountyForge.
-2. Confirm the contract address ends in `11899` everywhere.
-3. Open every URL once and ensure it is clickable.
-4. Complete the reCAPTCHA personally.
-5. Leave Demo video blank unless a real public or unlisted YouTube URL exists.
-6. Submit only after the Portal preview shows all seven required fields complete.
-
-The Portal submission itself must be completed by the wallet owner; this document does not submit or resubmit anything automatically.
+The app remains at https://microwagers.vercel.app; this milestone updates that live app to V1.3.1 only after production health and contract-address checks pass. The milestone itself must be submitted manually by the project owner in GenLayer Portal. No transaction, captcha, or Portal submission is performed by this guide.

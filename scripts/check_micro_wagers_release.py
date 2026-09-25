@@ -17,7 +17,7 @@ DIRECT_TEST_PATH = ROOT / "tests" / "direct" / "test_micro_wagers.py"
 DEPLOY_SCRIPT_PATH = ROOT / "scripts" / "deploy_micro_wagers.py"
 ACCEPTANCE_SCRIPT_PATH = ROOT / "scripts" / "microwagers_acceptance.py"
 DEPLOYMENT_PATH = ROOT / "deployments" / "micro_wagers_studionet.json"
-ACCEPTANCE_PATH = ROOT / "deployments" / "micro_wagers_acceptance.json"
+ACCEPTANCE_PATH = ROOT / "deployments" / "micro_wagers_milestone1_v131_acceptance.json"
 HOSTING_PATH = ROOT / "deployments" / "micro_wagers_vercel.json"
 WEB_PATH = ROOT / "apps" / "microwagers-web"
 ADDRESS_PATTERN = re.compile(r"^0x[0-9a-fA-F]{40}$")
@@ -80,7 +80,10 @@ def verify_records() -> tuple[bool, dict | None]:
     lifecycle_live = assertions.get("lifecycle-live", {}).get("observed", {})
     recovery_voided = assertions.get("recovery-voided", {}).get("observed", {})
     original_record = resolved_observed.get("original_record", {})
+    original_sources = original_record.get("sources", [])
     appeal_record = appealed_observed.get("appeal_record", {})
+    appeal_sources = appeal_record.get("sources", [])
+    final_accounting = acceptance.get("final_accounting", {})
     required_steps = {
         "create-cancellation",
         "reject-noncreator-cancel",
@@ -95,13 +98,22 @@ def verify_records() -> tuple[bool, dict | None]:
         "accept-wager",
         "reject-early-resolution",
         "resolve-wager",
-        "reject-claim-during-appeal-window",
         "reject-winner-appeal",
         "appeal-wager",
+        "resolve-appeal",
         "reject-second-appeal",
-        "reject-nonwinner-claim",
-        "claim-wager",
+        "claim-funds-creator",
+        "claim-funds-tester",
     }
+    if appealed_observed.get("status") == "PROVISIONAL":
+        required_steps.add("claim-wager")
+        required_steps.add("reject-nonwinner-claim")
+    expected_refunds = (
+        "reject-creator-self-accept",
+        "reject-wrong-accept-stake",
+        "reject-winner-appeal",
+        "reject-second-appeal",
+    )
     checks = {
         "contract name": deployment.get("contract") == "MicroWagers",
         "StudioNet network": deployment.get("network") == "studionet",
@@ -114,7 +126,7 @@ def verify_records() -> tuple[bool, dict | None]:
         "zero fee": isinstance(constructor, dict) and constructor.get("fee_bps") == 0,
         "five-minute appeal": isinstance(constructor, dict) and constructor.get("appeal_window_secs") == 300,
         "ten-minute resolution recovery": isinstance(constructor, dict) and constructor.get("resolution_timeout_secs") == 600,
-        "release version": deployment.get("version") == "1.2.1-studionet",
+        "release version": deployment.get("version") == "1.3.1-studionet",
         "frontend exact address": read_frontend_address().lower() == address.lower(),
         "acceptance exact address": acceptance.get("contract", "").lower() == address.lower(),
         "acceptance source": acceptance.get("source_sha256") == deployment.get("source_sha256"),
@@ -124,28 +136,50 @@ def verify_records() -> tuple[bool, dict | None]:
         and lifecycle_live.get("winner") == ""
         and recovery_voided.get("winner") == "",
         "original source fingerprint recorded": original_record.get("exists") is True
-        and re.fullmatch(r"[0-9a-f]{64}", str(original_record.get("source_digest", ""))) is not None,
+        and re.fullmatch(r"[0-9a-f]{64}", str(original_record.get("source_digest", ""))) is not None
+        and len(original_sources) == 2
+        and len({source.get("url", "").lower() for source in original_sources}) == 2
+        and all(
+            isinstance(source.get("snapshot"), str)
+            and source.get("snapshot")
+            and source.get("citation") in source.get("snapshot", "")
+            and re.fullmatch(r"[0-9a-f]{64}", str(source.get("digest", ""))) is not None
+            for source in original_sources
+        ),
         "appeal record preserved separately": appealed_observed.get("original_record") == original_record
+        and appealed_observed.get("appeal_pending") is False
         and appeal_record.get("exists") is True
-        and re.fullmatch(r"[0-9a-f]{64}", str(appeal_record.get("source_digest", ""))) is not None,
+        and re.fullmatch(r"[0-9a-f]{64}", str(appeal_record.get("source_digest", ""))) is not None
+        and appeal_record.get("source_digest") == original_record.get("source_digest")
+        and appeal_record.get("provenance") == "GENLAYER_VALIDATOR_REEVALUATED_ORIGINAL_SNAPSHOTS_NO_REFETCH"
+        and len(appeal_sources) == 2
+        and [source.get("snapshot_ref") for source in appeal_sources]
+        == [source.get("digest") for source in original_sources],
         "required acceptance steps": required_steps.issubset(transactions)
         and all(transactions[step].get("checked") is True for step in required_steps),
         "positive matched acceptance": transactions.get("accept-wager", {}).get("execution_succeeded") is True
         or transactions.get("accept-wager-final", {}).get("execution_succeeded") is True,
-        "expired harness wager recovered when needed": (
-            "classification" not in transactions.get("accept-wager", {})
-            or (
-                transactions.get("accept-wager", {}).get("classification")
-                == "EXPECTED_CONTRACT_REJECTION_AFTER_HARNESS_DEADLINE_EXPIRED"
-                and acceptance.get("transfer_checks", {})
-                .get("cancel-expired-lifecycle", {})
-                .get("value_credited")
-                is True
-            )
+        "cancellation refund entered claimable accounting": acceptance.get("assertions", {}).get("cancel-refund-credited", {}).get("observed", {}).get("creator") == str(10**15),
+        "timeout refunds entered claimable accounting": acceptance.get("assertions", {}).get("timeout-refunds-credited", {}).get("observed", {}) == {"creator": str(10**15), "tester": str(10**15)},
+        "winner payout entered claimable accounting": appealed_observed.get("status") != "PROVISIONAL"
+        or acceptance.get("assertions", {}).get("winner-payout-credited", {}).get("observed", {}).get(
+            "creator" if appealed_observed.get("winner", "").lower() == str(acceptance.get("wallets", {}).get("creator", "")).lower() else "tester"
+        ) == appealed_observed.get("pot_atto"),
+        "failed payable values were credited": all(
+            transactions.get(step, {}).get("checked") is True
+            and transactions.get(step, {}).get("execution_succeeded") is True
+            and transactions.get(step, {}).get("expected_credit") is True
+            and transactions.get(step, {}).get("claimable_delta_atto")
+            == transactions.get(step, {}).get("value_atto")
+            for step in expected_refunds
         ),
-        "cancellation refund verified": acceptance.get("transfer_checks", {}).get("cancel-open-wager", {}).get("value_credited") is True,
-        "resolution timeout refunds verified": acceptance.get("transfer_checks", {}).get("void-unresolved", {}).get("all_value_credited") is True,
-        "winner payout verified": acceptance.get("transfer_checks", {}).get("claim-wager", {}).get("value_credited") is True,
+        "all participant liabilities settled": final_accounting.get("liabilities_covered") is True
+        and final_accounting.get("escrowed_atto") == "0"
+        and final_accounting.get("claimable_atto") == "0",
+        "claimable funds were withdrawn": all(
+            acceptance.get("transfer_checks", {}).get(f"claim-funds-{role}", {}).get("value_credited") is True
+            for role in ("creator", "tester")
+        ),
     }
     for label, passed in checks.items():
         print(f"{'PASS' if passed else 'FAIL'}: {label}")
@@ -179,7 +213,7 @@ def verify_hosting(required: bool, deployment: dict | None) -> bool:
         "correct source commit": re.fullmatch(r"[0-9a-f]{40}", str(hosting.get("source_commit", ""))) is not None,
         "matching contract": hosting.get("contract_address", "").lower() == expected_address.lower(),
         "health identifies product": health.get("product") == "MicroWagers",
-        "health identifies release": health.get("release") == "1.2.1",
+        "health identifies release": health.get("release") == "1.3.1",
         "health identifies StudioNet": health.get("network") == "StudioNet",
         "health is release-ready": health.get("readyForStudioNetTesting") is True,
     }

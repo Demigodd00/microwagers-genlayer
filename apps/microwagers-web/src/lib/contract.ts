@@ -23,6 +23,20 @@ export interface WagerSummary {
   stake_atto: string;
   outcome_label: string;
   appealed: boolean;
+  appeal_pending: boolean;
+  appeal_pending_since_unix: string;
+  appeal_recovery_unix: string;
+}
+
+export interface SourceEvidence {
+  url: string;
+  digest: string;
+  snapshot?: string;
+  snapshot_ref?: string;
+  bytes?: number;
+  chars?: number;
+  finding: "A" | "B" | "NEITHER";
+  citation: string;
 }
 
 export interface AdjudicationRecord {
@@ -37,6 +51,7 @@ export interface AdjudicationRecord {
   source_snapshot: string;
   source_bytes: string;
   source_chars: string;
+  sources: SourceEvidence[];
   judged_at_unix: string;
   judged_at_iso: string;
   provenance: string;
@@ -44,6 +59,7 @@ export interface AdjudicationRecord {
 
 export interface WagerView extends WagerSummary {
   source_url: string;
+  source_url_2: string;
   creator: string;
   taker: string;
   deadline_unix: string;
@@ -75,8 +91,20 @@ export interface MarketStats {
   max_page_size: string;
   max_source_bytes: string;
   max_source_chars: string;
+  max_sources: string;
   source_policy: string;
+  escrowed_atto: string;
+  total_claimable_atto: string;
   version: string;
+}
+
+export interface ContractAccounting {
+  contract_balance_atto: string;
+  escrowed_atto: string;
+  claimable_atto: string;
+  liabilities_atto: string;
+  unallocated_surplus_atto: string;
+  liabilities_covered: boolean;
 }
 
 export interface TxProgress {
@@ -126,6 +154,15 @@ export function isPublicHttpsSource(value: string): boolean {
   if (!host.includes(".") || host === "localhost" || host.endsWith(".local")) return false;
   if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return false;
   return /^[a-z0-9.-]+$/.test(host) && !host.includes("..");
+}
+
+export function areDistinctPublicHttpsSources(first: string, second: string): boolean {
+  if (!isPublicHttpsSource(first) || !isPublicHttpsSource(second)) return false;
+  try {
+    return new URL(first.trim()).hostname.toLowerCase() !== new URL(second.trim()).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
 }
 
 export function shortenAddress(value: string): string {
@@ -181,12 +218,25 @@ async function waitForSuccess(hash: unknown, onProgress: (progress: TxProgress) 
 async function write(session: WalletSession, functionName: string, args: unknown[], value: bigint, onProgress: (progress: TxProgress) => void): Promise<string> {
   return oneTransactionAtATime(session.address, async () => {
     let txHash: string | undefined;
+    const claimableBefore = value > 0n
+      ? await getClaimableBalance(session.address).catch(() => null)
+      : null;
     onProgress({ state: "awaiting-signature", label: "Confirm this transaction in your wallet" });
     try {
       const hash = await session.client.writeContract({ address: contractAddress(), functionName, args: args as never[], value });
       txHash = String(hash);
       onProgress({ state: "submitted", label: "Transaction submitted", hash: txHash });
       await waitForSuccess(hash, onProgress);
+      if (functionName === "appeal_wager") {
+        onProgress({ state: "confirmed", label: "Bond locked; appeal queued for separate resolution", hash: txHash });
+      }
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("microwagers:refresh"));
+      if (value > 0n && claimableBefore !== null) {
+        const claimableAfter = await getClaimableBalance(session.address).catch(() => claimableBefore);
+        if (claimableAfter > claimableBefore) {
+          onProgress({ state: "confirmed", label: `${formatGen(claimableAfter - claimableBefore)} test GEN is safely claimable below.`, hash: txHash });
+        }
+      }
       return txHash;
     } catch (error) {
       onProgress({ state: "failed", label: friendlyError(error), hash: txHash });
@@ -213,11 +263,27 @@ export async function getStats(): Promise<MarketStats> {
   return await withReadRetry(() => readClient.readContract({ address: contractAddress(), functionName: "get_stats", args: [] })) as unknown as MarketStats;
 }
 
-export const createWager = (session: WalletSession, input: { question: string; creatorSide: string; takerSide: string; sourceUrl: string; deadlineUnix: number; stakeAtto: bigint }, onProgress: (progress: TxProgress) => void) =>
-  write(session, "create_wager", [input.question, input.creatorSide, input.takerSide, input.sourceUrl, input.deadlineUnix], input.stakeAtto, onProgress);
+export async function getAccounting(): Promise<ContractAccounting> {
+  return await withReadRetry(() => readClient.readContract({ address: contractAddress(), functionName: "get_accounting", args: [] })) as unknown as ContractAccounting;
+}
+
+export async function getClaimableBalance(account: Address): Promise<bigint> {
+  const balance = await withReadRetry(() => readClient.readContract({
+    address: contractAddress(),
+    functionName: "get_claimable_balance",
+    args: [account],
+  }));
+  return BigInt(String(balance));
+}
+
+export const createWager = (session: WalletSession, input: { question: string; creatorSide: string; takerSide: string; sourceUrl: string; sourceUrl2: string; deadlineUnix: number; stakeAtto: bigint }, onProgress: (progress: TxProgress) => void) =>
+  write(session, "create_wager", [input.question, input.creatorSide, input.takerSide, input.sourceUrl, input.sourceUrl2, input.deadlineUnix], input.stakeAtto, onProgress);
 export const acceptWager = (session: WalletSession, wagerId: string, stakeAtto: bigint, onProgress: (progress: TxProgress) => void) => write(session, "accept_wager", [wagerId], stakeAtto, onProgress);
 export const cancelWager = (session: WalletSession, wagerId: string, onProgress: (progress: TxProgress) => void) => write(session, "cancel_wager", [wagerId], 0n, onProgress);
 export const resolveWager = (session: WalletSession, wagerId: string, onProgress: (progress: TxProgress) => void) => write(session, "resolve_wager", [wagerId], 0n, onProgress);
 export const voidUnresolvedWager = (session: WalletSession, wagerId: string, onProgress: (progress: TxProgress) => void) => write(session, "void_unresolved", [wagerId], 0n, onProgress);
 export const appealWager = (session: WalletSession, wagerId: string, statement: string, bondAtto: bigint, onProgress: (progress: TxProgress) => void) => write(session, "appeal_wager", [wagerId, statement], bondAtto, onProgress);
+export const resolveAppeal = (session: WalletSession, wagerId: string, onProgress: (progress: TxProgress) => void) => write(session, "resolve_appeal", [wagerId], 0n, onProgress);
+export const voidPendingAppeal = (session: WalletSession, wagerId: string, onProgress: (progress: TxProgress) => void) => write(session, "void_pending_appeal", [wagerId], 0n, onProgress);
 export const claimWager = (session: WalletSession, wagerId: string, onProgress: (progress: TxProgress) => void) => write(session, "claim", [wagerId], 0n, onProgress);
+export const claimFunds = (session: WalletSession, onProgress: (progress: TxProgress) => void) => write(session, "claim_funds", [], 0n, onProgress);

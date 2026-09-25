@@ -1,8 +1,8 @@
 # MicroWagers by demigodd00
 
-MicroWagers is a peer-to-peer prediction application for GenLayer StudioNet. Two wallets take opposite sides of a binary claim, and GenLayer validators resolve the claim from a fixed public HTTPS source after the deadline. StudioNet test GEN has no monetary value.
+MicroWagers is a peer-to-peer prediction application for GenLayer StudioNet. Two wallets take opposite sides of a binary claim. After the deadline, GenLayer validators independently fetch two distinct public HTTPS sources, record source-specific findings and exact citations, and reach consensus. StudioNet test GEN has no monetary value.
 
-This is the dedicated public review repository for the MicroWagers Project Explorer submission. The broader multi-product development repository remains at [Demigodd00/demigodd00-genlayer-apps](https://github.com/Demigodd00/demigodd00-genlayer-apps).
+This is the dedicated public source and review repository for the accepted MicroWagers project and its V1.3.1 milestone. The broader multi-product development repository remains at [Demigodd00/demigodd00-genlayer-apps](https://github.com/Demigodd00/demigodd00-genlayer-apps).
 
 ## Verified release
 
@@ -11,26 +11,27 @@ This is the dedicated public review repository for the MicroWagers Project Explo
 | Live app | https://microwagers.vercel.app |
 | Status page | https://microwagers.vercel.app/status |
 | Network | GenLayer StudioNet |
-| Contract | `0xbe655aa17d1b4d31021791F0640a8c4677A11899` |
-| Explorer | https://explorer-studio.genlayer.com/address/0xbe655aa17d1b4d31021791F0640a8c4677A11899 |
-| Contract version | `1.2.1-studionet` |
-| Deployment transaction | `0xe096d44ab3ad194760cc71c9c1c22331eaebffcdf94ac9e4ab2455965a7ff7e5` |
-| Contract source SHA-256 | `3c786a3e74a6579b66438782e5443d1981c4e3fcef76d5b4ce818ad4835dfe46` |
+| Contract | `0x07D4eD4B2293faE326BaF9a943Ed3a56E04D8D4a` |
+| Explorer | https://explorer-studio.genlayer.com/address/0x07D4eD4B2293faE326BaF9a943Ed3a56E04D8D4a |
+| Contract version | `1.3.1-studionet` |
+| Deployment transaction | `0x6eb768a648e7fa378676695451fb45b46b4084a9b9b2cf0d5e57472ac0b9b962` |
+| Contract source SHA-256 | `2ed0386b511764e90c9c79f34aefc67cbb383a7d889051bcf901fab7e4e736d6` |
 | Acceptance result | `PASS` |
 
 ## Why GenLayer is central
 
-The contract does not receive a winner from an administrator or conventional oracle. After a matched wager reaches its deadline, GenLayer validators fetch the fixed source URL and use comparative consensus to decide which submitted position the evidence supports. Settlement follows that agreed result.
+The contract does not receive a winner from an administrator or conventional oracle. Each matched wager pins two HTTPS source URLs on distinct hosts. After its deadline, GenLayer validators fetch both pages, produce source-specific findings with citations that must exactly occur in the fetched text, and decide only when both sources agree decisively. Disagreement, unverifiable evidence, or insufficient confidence voids the wager and credits both stakes for withdrawal.
 
-Each decision preserves the exact source snapshot, SHA-256 digest, byte and character counts, outcome, confidence, reason, winner, and judgment time. One bonded appeal causes an independent validator refetch while keeping the original and appeal records separate. Ambiguous evidence refunds both users, and any wallet can recover both stakes if adjudication does not finalize within the configured timeout.
+Each decision preserves the two exact source snapshots, their individual fingerprints, findings and citations, plus the outcome, confidence, reason, winner, and judgment time. One bonded appeal is queued separately; any wallet may resolve it against the stored original snapshots without refetching. The original and appeal records are retained independently. Appeals cannot block payout forever: timed-out appeals can be voided with their bond returned. All payouts and refunds first become on-chain claimable balances, then wallets withdraw them; this prevents failed transfers from corrupting wager settlement. Any wallet can recover both stakes if original adjudication remains unresolved past its timeout.
 
 ## Reviewer path
 
-1. Open [w-3](https://microwagers.vercel.app/markets?wager=w-3) to inspect a settled and appealed wager with separate Original and Appeal records.
-2. Expand `Stored source snapshot` in both records and compare their 559-byte snapshots and SHA-256 digests.
+1. Open [w-3](https://microwagers.vercel.app/markets?wager=w-3) to inspect a settled wager and its distinct Original and Appeal records.
+2. Expand the two source findings in the Original record. Verify both distinct hosts, exact citations, 559-byte per-source snapshots, and the matching source digests. Confirm the Appeal record points to those same frozen snapshots.
 3. Open [w-2](https://microwagers.vercel.app/markets?wager=w-2) to inspect permissionless timeout recovery and both refunded stakes.
-4. Open the [status page](https://microwagers.vercel.app/status) and compare its configuration with the [Explorer contract](https://explorer-studio.genlayer.com/address/0xbe655aa17d1b4d31021791F0640a8c4677A11899).
-5. Review [`deployments/micro_wagers_acceptance.json`](deployments/micro_wagers_acceptance.json) for the exact-address, three-wallet acceptance journal.
+4. Open [w-1](https://microwagers.vercel.app/markets?wager=w-1) to inspect cancellation and refund of an unmatched wager.
+5. Open the [status page](https://microwagers.vercel.app/status) and compare its configuration with the [Explorer contract](https://explorer-studio.genlayer.com/address/0x07D4eD4B2293faE326BaF9a943Ed3a56E04D8D4a).
+6. Review [`deployments/micro_wagers_milestone1_v131_acceptance.json`](deployments/micro_wagers_milestone1_v131_acceptance.json) for the exact-address, two-participant and independent-observer acceptance journal.
 
 No wallet connection is required to review these completed states.
 
@@ -62,7 +63,7 @@ python -m pip install -r requirements-dev.txt
 python scripts/prepare_gltest_runner.py
 genvm-lint check contracts/micro_wagers.py
 pytest tests/direct/test_micro_wagers.py -q
-NEXT_PUBLIC_MICROWAGERS_ADDRESS=0xbe655aa17d1b4d31021791F0640a8c4677A11899 python scripts/check_micro_wagers_release.py --skip-web --require-hosting
+NEXT_PUBLIC_MICROWAGERS_ADDRESS=0x07D4eD4B2293faE326BaF9a943Ed3a56E04D8D4a python scripts/check_micro_wagers_release.py --skip-web --require-hosting
 ```
 
 StudioNet integration tests make real test-network transactions and are therefore intentionally not part of the default CI run.

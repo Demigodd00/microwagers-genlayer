@@ -26,7 +26,7 @@ from web3.logs import DISCARD
 
 ROOT = Path(__file__).resolve().parents[1]
 DEPLOYMENT_PATH = ROOT / "deployments" / "micro_wagers_studionet.json"
-RECORD_PATH = ROOT / "deployments" / "micro_wagers_acceptance.json"
+RECORD_PATH = ROOT / "deployments" / "micro_wagers_milestone1_v131_acceptance.json"
 ENV_PATH = ROOT / ".env"
 RPC_URL = "https://studio.genlayer.com/api"
 STAKE = 10**15
@@ -194,10 +194,11 @@ class Acceptance:
             "resolution_timeout_secs": "600",
             "experimental": True,
             "max_page_size": "25",
-            "max_source_bytes": "100000",
+            "max_source_bytes": "25000",
             "max_source_chars": "8000",
-            "source_policy": "STRICT_UTF8_SHA256_VALIDATOR_FETCH_AND_SNAPSHOT",
-            "version": "1.2.1-studionet",
+            "max_sources": "2",
+            "source_policy": "TWO_DISTINCT_HOSTS_UNANIMOUS_CITED_FINDINGS_FROZEN_APPEALS",
+            "version": "1.3.1-studionet",
         }
         if any(stats.get(key) != value for key, value in expected.items()):
             raise RuntimeError("The exact-release configuration is not active")
@@ -212,13 +213,25 @@ class Acceptance:
         self.save()
         output({"phase": "preflight", "passed": True, "contract": self.address, "stats": stats})
 
-    def write(self, step: str, method: str, args: list, value: int = 0, role: str = "creator", expected_error: str | None = None) -> dict:
+    def write(
+        self,
+        step: str,
+        method: str,
+        args: list,
+        value: int = 0,
+        role: str = "creator",
+        expected_error: str | None = None,
+        expected_credit: bool = False,
+    ) -> dict:
         self.use_role(role)
         entries = self.record["transactions"]
         entry = entries.get(step)
-        signature = (method, args, role, str(value), expected_error)
+        signature = (method, args, role, str(value), expected_error, expected_credit)
         if entry:
-            recorded = (entry["method"], entry["args"], entry["role"], entry["value_atto"], entry["expected_error"])
+            recorded = (
+                entry["method"], entry["args"], entry["role"], entry["value_atto"],
+                entry["expected_error"], entry.get("expected_credit", False),
+            )
             if recorded != signature:
                 raise RuntimeError(f"Recorded step {step} has different transaction arguments")
             if entry.get("checked"):
@@ -231,10 +244,17 @@ class Acceptance:
                 "sender": self.accounts[role].address,
                 "value_atto": str(value),
                 "expected_error": expected_error,
+                "expected_credit": expected_credit,
                 "started_at": timestamp(),
                 "broadcast_attempted": False,
             }
             entries[step] = entry
+            self.save()
+
+        if "claimable_before_atto" not in entry:
+            entry["claimable_before_atto"] = self.read(
+                "get_claimable_balance", [self.accounts[role].address]
+            )
             self.save()
 
         self.active_step = step
@@ -280,7 +300,22 @@ class Acceptance:
                         "finished_at": timestamp(),
                     }
                 )
-                if expected_error:
+                if expected_credit:
+                    if not success:
+                        entry["failure_detail"] = leaders[0].get("genvm_result") if leaders else None
+                        self.save()
+                        raise RuntimeError(f"{step}: payable failure did not become a successful refund credit")
+                    current_claimable = int(self.read(
+                        "get_claimable_balance", [self.accounts[role].address]
+                    ))
+                    delta = current_claimable - int(entry["claimable_before_atto"])
+                    if delta != value:
+                        self.save()
+                        raise RuntimeError(f"{step}: expected {value} atto in a claimable refund, found {delta}")
+                    entry["claimable_after_atto"] = str(current_claimable)
+                    entry["claimable_delta_atto"] = str(delta)
+                    entry["refund_reason"] = expected_error
+                elif expected_error:
                     if success or not any(expected_error.lower() in text.lower() for text in error_text(receipt)):
                         self.save()
                         raise RuntimeError(f"{step}: expected contract rejection was not verified")
@@ -313,6 +348,38 @@ class Acceptance:
         output({"assertion": key, "passed": True, "expected": expected})
         return actual
 
+    def claimable_balance(self, role: str) -> int:
+        return int(self.read("get_claimable_balance", [self.accounts[role].address]))
+
+    def claimable_snapshot(self, step: str, roles: list[str]) -> dict[str, int]:
+        snapshots = self.record.setdefault("claimable_snapshots", {})
+        if step not in snapshots:
+            snapshots[step] = {
+                role: str(self.claimable_balance(role)) for role in roles
+            }
+            self.save()
+        return {role: int(value) for role, value in snapshots[step].items()}
+
+    def assert_claimable_delta(
+        self, key: str, before: dict[str, int], expected_deltas: dict[str, int]
+    ) -> None:
+        existing = self.record["assertions"].get(key)
+        expected = {role: str(amount) for role, amount in expected_deltas.items()}
+        if existing:
+            if existing["expected"] != expected:
+                raise RuntimeError(f"Historical claimable assertion {key} has different expectations")
+            return
+        observed = {role: self.claimable_balance(role) - before[role] for role in expected_deltas}
+        if observed != expected_deltas:
+            raise AssertionError(f"{key}: claimable deltas are {observed}, expected {expected_deltas}")
+        self.record["assertions"][key] = {
+            "checked_at": timestamp(),
+            "expected": expected,
+            "observed": {role: str(amount) for role, amount in observed.items()},
+        }
+        self.save()
+        output({"assertion": key, "passed": True, "claimable_deltas": expected})
+
     def find_wager(self, question: str) -> str:
         matches = []
         offset = 0
@@ -332,21 +399,23 @@ class Acceptance:
         question: str,
         deadline_lead: int,
         source_url: str = "https://example.com/",
+        source_url_2: str = "https://example.net/",
     ) -> str:
         step = f"create-{key}"
         existing = self.record["transactions"].get(step)
         args = existing["args"] if existing else [
             question,
-            "Yes — the source states it is for illustrative examples",
-            "No — the source states something different",
+            "Yes — the page is for documentation examples",
+            "No — the page does not say that",
             source_url,
+            source_url_2,
             int(time.time()) + deadline_lead,
         ]
         self.write(step, "create_wager", args, value=STAKE)
         if key not in self.record["wagers"]:
             self.record["wagers"][key] = self.find_wager(question)
             self.save()
-        output({"wager": key, "id": self.record["wagers"][key], "deadline_unix": args[4]})
+        output({"wager": key, "id": self.record["wagers"][key], "deadline_unix": args[5]})
         return self.record["wagers"][key]
 
     def wait_until(self, unix: int, reason: str) -> None:
@@ -429,13 +498,14 @@ class Acceptance:
             role="tester",
             expected_error="only the creator can cancel",
         )
+        cancel_before = self.claimable_snapshot("before-cancel", ["creator"])
         self.write("cancel-open-wager", "cancel_wager", [cancelled_id])
         self.assert_fields(
             "cancellation-voided",
             self.read("get_wager", [cancelled_id]),
             {"status": "VOIDED", "taker": "", "winner": ""},
         )
-        self.verify_transfer("cancel-open-wager", self.accounts["creator"].address, STAKE)
+        self.assert_claimable_delta("cancel-refund-credited", cancel_before, {"creator": STAKE})
         output({"phase": "cancellation", "passed": True})
 
         recovery_question = "Release acceptance: can an unresolved market recover both test stakes?"
@@ -444,6 +514,7 @@ class Acceptance:
             recovery_question,
             300,
             source_url="https://unavailable.example/microwagers",
+            source_url_2="https://example.net/",
         )
         self.write("accept-recovery-wager", "accept_wager", [recovery_id], value=STAKE, role="tester")
         recovery_live = self.assert_fields(
@@ -459,7 +530,7 @@ class Acceptance:
             expected_error="resolution recovery window is still open",
         )
 
-        lifecycle_question = "Release acceptance: when resolved, does Example Domain say it is for illustrative examples?"
+        lifecycle_question = "Release acceptance: do both source pages say the domain is for documentation examples without needing permission?"
         wager_id = self.create("lifecycle", lifecycle_question, 600)
         self.assert_fields(
             "lifecycle-open",
@@ -472,6 +543,12 @@ class Acceptance:
             [wager_id],
             value=STAKE,
             expected_error="creator cannot accept own wager",
+            expected_credit=True,
+        )
+        self.assert_fields(
+            "self-accept-left-open",
+            self.read("get_wager", [wager_id]),
+            {"status": "OPEN", "taker": "", "winner": ""},
         )
         self.write(
             "reject-wrong-accept-stake",
@@ -480,27 +557,9 @@ class Acceptance:
             value=STAKE * 2,
             role="tester",
             expected_error="must stake exactly",
+            expected_credit=True,
         )
         accept_step = "accept-wager"
-        prior_accept = self.record["transactions"].get(accept_step)
-        if prior_accept and prior_accept.get("status") == "FINALIZED" and prior_accept.get("execution_succeeded") is False:
-            expired = self.read("get_wager", [wager_id])
-            if expired.get("status") != "OPEN" or int(expired["deadline_unix"]) >= int(time.time()):
-                raise RuntimeError("Failed acceptance cannot be classified as a deadline-expired harness attempt")
-            prior_accept["checked"] = True
-            prior_accept["classification"] = "EXPECTED_CONTRACT_REJECTION_AFTER_HARNESS_DEADLINE_EXPIRED"
-            prior_accept["expected_error"] = "deadline elapsed before the positive match reached execution"
-            self.save()
-            self.write("cancel-expired-lifecycle", "cancel_wager", [wager_id])
-            self.verify_transfer("cancel-expired-lifecycle", self.accounts["creator"].address, STAKE)
-            lifecycle_question = "Release acceptance final: when resolved, does Example Domain describe illustrative examples?"
-            wager_id = self.create("lifecycle-final", lifecycle_question, 600)
-            self.assert_fields(
-                "lifecycle-final-open",
-                self.read("get_wager", [wager_id]),
-                {"status": "OPEN", "stake_atto": str(STAKE), "taker": "", "winner": ""},
-            )
-            accept_step = "accept-wager-final"
         self.write(accept_step, "accept_wager", [wager_id], value=STAKE, role="tester")
         live = self.assert_fields(
             "lifecycle-live",
@@ -530,12 +589,15 @@ class Acceptance:
             if resolved["winner"].lower() not in participant_addresses:
                 raise AssertionError("The validator returned a winner outside the two participants")
             original_record = resolved.get("original_record", {})
+            original_sources = original_record.get("sources", [])
             if (
                 original_record.get("exists") is not True
                 or re.fullmatch(r"[0-9a-f]{64}", str(original_record.get("source_digest", ""))) is None
-                or original_record.get("provenance") != "GENLAYER_VALIDATOR_FETCH_AT_ADJUDICATION"
+                or original_record.get("provenance") != "GENLAYER_VALIDATOR_DUAL_SOURCE_FETCH_AND_SNAPSHOT"
+                or len(original_sources) != 2
+                or any(not source.get("snapshot") or not source.get("citation") for source in original_sources)
             ):
-                raise AssertionError("Original adjudication provenance was not recorded")
+                raise AssertionError("Dual-source adjudication provenance was not recorded")
             self.record["assertions"]["resolved-decisively"] = {
                 "checked_at": timestamp(),
                 "expected": {"status": "PROVISIONAL", "participant_winner": True},
@@ -547,19 +609,13 @@ class Acceptance:
         winner_role = "creator" if resolved["winner"].lower() == self.accounts["creator"].address.lower() else "tester"
         loser_role = "tester" if winner_role == "creator" else "creator"
         self.write(
-            "reject-claim-during-appeal-window",
-            "claim",
-            [wager_id],
-            role=winner_role,
-            expected_error="appeal window is still open",
-        )
-        self.write(
             "reject-winner-appeal",
             "appeal_wager",
             [wager_id, "Independent acceptance check from the current winner."],
             value=STAKE,
             role=winner_role,
             expected_error="only the losing participant can appeal",
+            expected_credit=True,
         )
         self.write(
             "appeal-wager",
@@ -568,22 +624,42 @@ class Acceptance:
             value=STAKE,
             role=loser_role,
         )
+        queued = self.read("get_wager", [wager_id])
+        if (
+            queued.get("appealed") is not True
+            or queued.get("appeal_pending") is not True
+            or queued.get("appeal_record", {}).get("exists") is not False
+            or queued.get("original_record") != resolved.get("original_record")
+        ):
+            raise AssertionError("Bonded appeal was not safely queued without changing the original record")
+        self.record["assertions"].setdefault("appeal-queued", {
+            "checked_at": timestamp(),
+            "expected": {"appealed": True, "appeal_pending": True, "appeal_record.exists": False},
+            "observed": queued,
+        })
+        self.save()
+        self.write("resolve-appeal", "resolve_appeal", [wager_id], role="observer")
         historical_appeal = self.record["assertions"].get("appeal-reviewed")
         if historical_appeal:
             appealed = historical_appeal["observed"]
         else:
             appealed = self.read("get_wager", [wager_id])
-            if appealed.get("appealed") is not True or appealed["status"] not in {"PROVISIONAL", "VOIDED"}:
+            if appealed.get("appealed") is not True or appealed.get("appeal_pending") is not False or appealed["status"] not in {"PROVISIONAL", "VOIDED"}:
                 raise AssertionError("Appeal did not record a valid reviewed state")
             if appealed.get("original_record") != resolved.get("original_record"):
                 raise AssertionError("Appeal overwrote the original adjudication record")
             appeal_record = appealed.get("appeal_record", {})
+            appeal_sources = appeal_record.get("sources", [])
             if (
                 appeal_record.get("exists") is not True
                 or re.fullmatch(r"[0-9a-f]{64}", str(appeal_record.get("source_digest", ""))) is None
-                or appeal_record.get("provenance") != "GENLAYER_VALIDATOR_REFETCH_AT_APPEAL"
+                or appeal_record.get("provenance") != "GENLAYER_VALIDATOR_REEVALUATED_ORIGINAL_SNAPSHOTS_NO_REFETCH"
+                or appeal_record.get("source_digest") != original_record.get("source_digest")
+                or len(appeal_sources) != 2
+                or [source.get("snapshot_ref") for source in appeal_sources]
+                != [source.get("digest") for source in original_sources]
             ):
-                raise AssertionError("Appeal adjudication provenance was not recorded")
+                raise AssertionError("Frozen-snapshot appeal provenance was not recorded")
             self.record["assertions"]["appeal-reviewed"] = {
                 "checked_at": timestamp(),
                 "expected": {"appealed": True, "status": "PROVISIONAL_OR_VOIDED"},
@@ -600,6 +676,7 @@ class Acceptance:
             value=STAKE,
             role=loser_role,
             expected_error=duplicate_error,
+            expected_credit=True,
         )
 
         if appealed["status"] == "PROVISIONAL":
@@ -618,13 +695,15 @@ class Acceptance:
                 expected_error="only the winner can claim",
             )
             pot = int(appealed["pot_atto"])
+            claim_before = self.claimable_snapshot("before-winner-claim", [final_winner_role])
             self.write("claim-wager", "claim", [wager_id], role=final_winner_role)
             self.assert_fields("lifecycle-settled", self.read("get_wager", [wager_id]), {"status": "SETTLED"})
-            self.verify_transfer("claim-wager", self.accounts[final_winner_role].address, pot)
+            self.assert_claimable_delta("winner-payout-credited", claim_before, {final_winner_role: pot})
         else:
             output({"phase": "settlement", "passed": True, "result": "VOIDED_AND_REFUNDED"})
 
         self.wait_until(int(recovery_live["resolution_recovery_unix"]) + 2, "resolution recovery timeout")
+        recovery_claims_before = self.claimable_snapshot("before-resolution-recovery", ["creator", "tester"])
         self.write("void-unresolved", "void_unresolved", [recovery_id], role="observer")
         recovered = self.assert_fields(
             "recovery-voided",
@@ -633,14 +712,31 @@ class Acceptance:
         )
         if recovered.get("original_record", {}).get("exists") is not False:
             raise AssertionError("Timeout recovery must not fabricate an adjudication record")
-        self.verify_transfers(
-            "void-unresolved",
-            [
-                (self.accounts["creator"].address, STAKE),
-                (self.accounts["tester"].address, STAKE),
-            ],
+        self.assert_claimable_delta(
+            "timeout-refunds-credited", recovery_claims_before,
+            {"creator": STAKE, "tester": STAKE},
         )
         output({"phase": "resolution-recovery", "passed": True, "caller": self.accounts["observer"].address})
+
+        withdrawals = self.record.setdefault("withdrawals", {})
+        for role in ("creator", "tester"):
+            step = f"claim-funds-{role}"
+            if step not in withdrawals:
+                amount = self.claimable_balance(role)
+                if amount <= 0:
+                    raise AssertionError(f"{role} should have claimable funds from acceptance")
+                withdrawals[step] = str(amount)
+                self.save()
+            amount = int(withdrawals[step])
+            self.write(step, "claim_funds", [], role=role)
+            self.verify_transfer(step, self.accounts[role].address, amount)
+            if self.claimable_balance(role) != 0:
+                raise AssertionError(f"{role} still has claimable funds after withdrawal")
+
+        accounting = self.read("get_accounting", [])
+        if accounting.get("liabilities_covered") is not True or int(accounting["escrowed_atto"]) != 0 or int(accounting["claimable_atto"]) != 0:
+            raise AssertionError(f"Final contract accounting is not fully covered and settled: {accounting}")
+        self.record["final_accounting"] = accounting
 
         stats = self.read("get_stats", [])
         if int(stats["total_created"]) < 3:

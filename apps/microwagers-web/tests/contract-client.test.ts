@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatGen, friendlyError, isPublicHttpsSource, parseGen, withReadRetry } from "../src/lib/contract";
+import { formatGen, friendlyError, isPublicHttpsSource, areDistinctPublicHttpsSources, parseGen, withReadRetry } from "../src/lib/contract";
 
 test("GEN parsing and formatting preserve 18-decimal integer values", () => {
   assert.equal(parseGen("0.001"), 10n ** 15n);
@@ -44,4 +44,7 @@ test("resolution sources match the contract's public HTTPS boundary", () => {
   assert.equal(isPublicHttpsSource("https://example..com/results"), false);
   assert.equal(isPublicHttpsSource("https://example.com:invalid/results"), false);
   assert.equal(isPublicHttpsSource("https://example.com/bad path"), false);
+  assert.equal(areDistinctPublicHttpsSources("https://example.com/a", "https://example.net/b"), true);
+  assert.equal(areDistinctPublicHttpsSources("https://example.com/a", "https://example.com/b"), false);
+  assert.equal(areDistinctPublicHttpsSources("https://example.com/a", "http://example.net/b"), false);
 });

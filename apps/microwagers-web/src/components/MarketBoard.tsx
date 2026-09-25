@@ -12,7 +12,9 @@ import {
   getWager,
   listWagers,
   resolveWager,
+  resolveAppeal,
   shortenAddress,
+  voidPendingAppeal,
   voidUnresolvedWager,
   type AdjudicationRecord,
   type TxProgress,
@@ -35,6 +37,7 @@ const emptyRecord: AdjudicationRecord = {
   source_snapshot: "",
   source_bytes: "0",
   source_chars: "0",
+  sources: [],
   judged_at_unix: "0",
   judged_at_iso: "",
   provenance: "",
@@ -49,7 +52,11 @@ const demoWager: WagerView = {
   stake_atto: "1000000000000000",
   outcome_label: "",
   appealed: false,
+  appeal_pending: false,
+  appeal_pending_since_unix: "0",
+  appeal_recovery_unix: "0",
   source_url: "https://example.com/",
+  source_url_2: "https://example.net/",
   creator: "0x8a7F943b8C9B22D9aA8D3c05F44A2221090Be710",
   taker: "0x8a7F943b8C9B22D9aA8D3c05F44A2221090Be710",
   deadline_unix: String(Math.floor(Date.now() / 1000) + 600),
@@ -210,7 +217,9 @@ export function MarketDetail({ session, wager: storedWager, onRefresh }: { sessi
     original_record: storedWager.original_record ?? emptyRecord,
     appeal_record: storedWager.appeal_record ?? emptyRecord,
     resolution_recovery_unix: storedWager.resolution_recovery_unix ?? "0",
-    claimable: storedWager.status === "PROVISIONAL" && now > Number(storedWager.appeal_deadline_unix),
+    appeal_pending: storedWager.appeal_pending ?? false,
+    appeal_recovery_unix: storedWager.appeal_recovery_unix ?? "0",
+    claimable: storedWager.status === "PROVISIONAL" && !storedWager.appeal_pending && now > Number(storedWager.appeal_deadline_unix),
   };
   const account = session?.address.toLowerCase() ?? "";
   const creator = wager.creator.toLowerCase();
@@ -224,6 +233,7 @@ export function MarketDetail({ session, wager: storedWager, onRefresh }: { sessi
   const pastDeadline = now >= Number(wager.deadline_unix);
   const recoveryAvailable = wager.status === "LIVE" && Number(wager.resolution_recovery_unix) > 0 && now > Number(wager.resolution_recovery_unix);
   const appealOpen = wager.status === "PROVISIONAL" && now <= Number(wager.appeal_deadline_unix);
+  const appealRecoveryAvailable = wager.appeal_pending && now > Number(wager.appeal_recovery_unix);
   const stake = stakePresentation(wager);
 
   async function run(action: () => Promise<unknown>) {
@@ -252,14 +262,15 @@ export function MarketDetail({ session, wager: storedWager, onRefresh }: { sessi
         <button className="button button-secondary" onClick={() => void copyLink()} disabled={busy}>Copy link</button>
       </header>
 
-      <div className="source-card"><span>Resolution source</span><a href={wager.source_url} target="_blank" rel="noreferrer">{wager.source_url} ↗</a><small>Fetched when adjudication runs after the deadline—not snapshotted at the deadline.</small></div>
+      <div className="source-card"><span>Agreed resolution sources</span><a href={wager.source_url} target="_blank" rel="noreferrer">1 · {wager.source_url} ↗</a><a href={wager.source_url_2} target="_blank" rel="noreferrer">2 · {wager.source_url_2} ↗</a><small>Validators fetch both after the deadline. Both must agree with verifiable quotations, or the wager is refunded.</small></div>
 
       <div className="sides-grid">
         <div className={wager.outcome_label === wager.creator_side ? "winning-side" : ""}><span>Creator · {shortenAddress(wager.creator)}</span><strong>{wager.creator_side}</strong></div>
         <div className={wager.outcome_label === wager.taker_side ? "winning-side" : ""}><span>{wager.status === "OPEN" ? "Open side" : unmatched ? "No taker" : `Taker · ${shortenAddress(wager.taker)}`}</span><strong>{wager.taker_side}</strong></div>
       </div>
 
-      {wager.status === "VOIDED" ? <div className="callout"><strong>Wager voided</strong><p>{wager.verdict_reason || "The wager was cancelled or could not be determined. Test stakes were refunded."}</p></div> : null}
+      {wager.status === "VOIDED" ? <div className="callout"><strong>Wager voided</strong><p>{wager.verdict_reason || "The wager was cancelled or could not be determined. Test stakes are available to claim."}</p></div> : null}
+      {wager.appeal_pending ? <div className="callout appeal-pending-callout"><strong>Appeal queued</strong><p>The bonded appeal is being checked against the original frozen evidence. Either participant or a third party can resolve it; the original verdict and both source snapshots remain preserved.</p></div> : null}
 
       <div className="metric-row">
         <div><span>Test GEN</span><strong>{formatGen(stake.amountAtto)}</strong><small>{stake.label}</small></div>
@@ -290,6 +301,9 @@ export function MarketDetail({ session, wager: storedWager, onRefresh }: { sessi
           {wager.status === "LIVE" && pastDeadline && !recoveryAvailable ? <p className="muted">Timeout refund opens in {formatCountdown(wager.resolution_recovery_unix, now)}.</p> : null}
           {wager.status === "LIVE" && !pastDeadline ? <p className="muted">Resolution opens in {formatCountdown(wager.deadline_unix, now)}.</p> : null}
           {wager.status === "PROVISIONAL" && appealOpen && isLoser && !wager.appealed ? <div className="appeal-form"><label><span>Appeal statement</span><textarea rows={3} maxLength={800} value={appealStatement} onChange={(event) => setAppealStatement(event.target.value)} placeholder="Explain what the source or verdict got wrong." /></label><button className="button button-secondary" onClick={submitAppeal}>Appeal with {formatGen(wager.stake_atto)} test GEN bond</button></div> : null}
+          {wager.appeal_pending && !appealRecoveryAvailable && session ? <button className="button button-primary" onClick={() => void run(() => resolveAppeal(session, wager.id, setProgress))}>Resolve appeal against frozen evidence</button> : null}
+          {appealRecoveryAvailable && session ? <button className="button button-secondary" onClick={() => void run(() => voidPendingAppeal(session, wager.id, setProgress))}>Refund stalled appeal bond</button> : null}
+          {wager.appeal_pending ? <p className="muted">{appealRecoveryAvailable ? "Recovery is open; the original provisional verdict remains in force if the bond is refunded." : `Anyone can resolve this appeal. Bond recovery opens in ${formatCountdown(wager.appeal_recovery_unix, now)}.`}</p> : null}
           {wager.status === "PROVISIONAL" && appealOpen && !isLoser ? <p className="muted">Payout remains locked for {formatCountdown(wager.appeal_deadline_unix, now)}.</p> : null}
           {wager.status === "PROVISIONAL" && wager.claimable && isWinner ? <button className="button button-primary" onClick={() => void run(() => claimWager(session!, wager.id, setProgress))}>Claim {formatGen(wager.pot_atto)} test GEN</button> : null}
           {!session && ["OPEN", "LIVE", "PROVISIONAL"].includes(wager.status) ? <p className="muted">Connect your wallet to take an action.</p> : null}
@@ -303,6 +317,7 @@ export function MarketDetail({ session, wager: storedWager, onRefresh }: { sessi
 }
 
 function actionHeading(wager: WagerView, isCreator: boolean, pastDeadline: boolean, appealOpen: boolean, recoveryAvailable: boolean): string {
+  if (wager.appeal_pending) return "Appeal awaiting validator review";
   if (wager.status === "OPEN") return isCreator ? "Share or cancel" : pastDeadline ? "Closed to matching" : "Take the other side";
   if (wager.status === "LIVE") return recoveryAvailable ? "Resolve or recover the stakes" : pastDeadline ? "Ready for validator resolution" : "Waiting for the deadline";
   if (wager.status === "PROVISIONAL") return appealOpen ? "Verdict open to appeal" : "Winner can claim";
@@ -312,14 +327,26 @@ function actionHeading(wager: WagerView, isCreator: boolean, pastDeadline: boole
 
 function AuditRecord({ label, record }: { label: string; record: AdjudicationRecord }) {
   const digest = record.source_digest ? `${record.source_digest.slice(0, 12)}…${record.source_digest.slice(-8)}` : "—";
+  const reused = record.provenance.includes("NO_REFETCH");
   return (
     <article>
       <span>{label}</span>
       <strong>{record.outcome_label || "Refund"} · {record.confidence_bucket}%</strong>
-      <code title={record.source_digest}>SHA-256 {digest}</code>
-      <small>{record.judged_at_iso ? new Date(record.judged_at_iso).toLocaleString() : ""} · {record.source_bytes} bytes</small>
+      <code title={record.source_digest}>Combined source SHA-256 {digest}</code>
+      <small>{record.judged_at_iso ? new Date(record.judged_at_iso).toLocaleString() : ""} · {reused ? "original snapshots reused; no refetch" : `${record.sources?.length ?? 0} source snapshots recorded`}</small>
       <p>{record.reason}</p>
-      {record.source_snapshot ? <details><summary>Stored source snapshot</summary><pre>{record.source_snapshot}</pre></details> : null}
+      <div className="evidence-sources">
+        {(record.sources ?? []).map((source, index) => (
+          <section key={`${source.digest}-${index}`}>
+            <a href={source.url} target="_blank" rel="noreferrer">Source {index + 1} · {source.url} ↗</a>
+            <code title={source.digest}>SHA-256 {source.digest.slice(0, 12)}…{source.digest.slice(-8)}</code>
+            <strong>{source.finding === "A" ? "Supports creator position" : source.finding === "B" ? "Supports taker position" : "Neither position established"}</strong>
+            {source.citation ? <blockquote>{source.citation}</blockquote> : null}
+            {source.snapshot ? <details><summary>Open exact adjudicated snapshot ({source.bytes} bytes)</summary><pre>{source.snapshot}</pre></details> : null}
+            {source.snapshot_ref ? <small>Frozen snapshot reference: {source.snapshot_ref.slice(0, 12)}…{source.snapshot_ref.slice(-8)}</small> : null}
+          </section>
+        ))}
+      </div>
     </article>
   );
 }

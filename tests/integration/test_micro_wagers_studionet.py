@@ -13,9 +13,9 @@ def _wait_until(unix_ts: int) -> None:
         time.sleep(5)
 
 
-def _create(alice_contract, question, side_a, side_b, url, deadline):
+def _create(alice_contract, question, side_a, side_b, url, url_2, deadline):
     tx = alice_contract.create_wager(
-        args=[question, side_a, side_b, url, deadline]
+        args=[question, side_a, side_b, url, url_2, deadline]
     ).transact(value=STAKE)
     assert tx_execution_succeeded(tx)
     listing = alice_contract.list_wagers(args=[0, 100]).call()
@@ -44,10 +44,11 @@ def test_resolvable_wager_creator_wins_on_studionet():
     deadline = int(time.time()) + 70
     wid = _create(
         contract,
-        "When validators resolve after the deadline, does the source page state that this domain is reserved for use in illustrative examples in documents?",
-        "Yes, the page states it is for use in illustrative examples",
-        "No, the page states something different",
+        "Do both source pages say the domain is for documentation examples without needing permission?",
+        "Yes — the page is for documentation examples",
+        "No — the page does not say that",
         "https://example.com/",
+        "https://example.net/",
         deadline,
     )
 
@@ -65,11 +66,13 @@ def test_resolvable_wager_creator_wins_on_studionet():
 
     w = contract.get_wager(args=[wid]).call()
     assert w["status"] == "PROVISIONAL"
-    assert w["outcome_label"] == "Yes, the page states it is for use in illustrative examples"
+    assert w["outcome_label"] == "Yes — the page is for documentation examples"
     assert w["winner"].lower() == alice.address.lower()
     assert len(w["verdict_reason"]) > 0
     assert len(w["original_record"]["source_digest"]) == 64
-    assert w["original_record"]["provenance"] == "GENLAYER_VALIDATOR_FETCH_AT_ADJUDICATION"
+    assert w["original_record"]["provenance"] == "GENLAYER_VALIDATOR_DUAL_SOURCE_FETCH_AND_SNAPSHOT"
+    assert len(w["original_record"]["sources"]) == 2
+    assert all(source["citation"] in source["snapshot"] for source in w["original_record"]["sources"])
 
     # Payout remains locked for the configured StudioNet appeal window.
     claim_tx = contract.claim(args=[wid]).transact()
@@ -79,6 +82,8 @@ def test_resolvable_wager_creator_wins_on_studionet():
     claim_tx = contract.claim(args=[wid]).transact()
     assert tx_execution_succeeded(claim_tx)
     assert contract.get_wager(args=[wid]).call()["status"] == "SETTLED"
+    assert int(contract.get_claimable_balance(args=[alice.address]).call()) == STAKE * 2
+    assert tx_execution_succeeded(contract.claim_funds().transact())
 
 
 def test_undeterminable_wager_voids_on_studionet():
@@ -96,6 +101,7 @@ def test_undeterminable_wager_voids_on_studionet():
         "Yes, it will rain then",
         "No, it will not rain then",
         "https://example.com/",
+        "https://example.net/",
         deadline,
     )
     _accept(bob_contract, wid)
@@ -106,6 +112,10 @@ def test_undeterminable_wager_voids_on_studionet():
     w = contract.get_wager(args=[wid]).call()
     assert w["status"] == "VOIDED"
     assert w["outcome_label"] == ""
+    assert int(contract.get_claimable_balance(args=[accounts[0].address]).call()) == STAKE
+    assert int(contract.get_claimable_balance(args=[bob.address]).call()) == STAKE
+    assert tx_execution_succeeded(contract.claim_funds().transact())
+    assert tx_execution_succeeded(bob_contract.claim_funds().transact())
 
     stats = contract.get_stats().call()
     assert int(stats["total_created"]) == 1

@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      NEXT_PUBLIC_MICROWAGERS_ADDRESS: "0xbe655aa17d1b4d31021791F0640a8c4677A11899"
+      NEXT_PUBLIC_MICROWAGERS_ADDRESS: "0x07D4eD4B2293faE326BaF9a943Ed3a56E04D8D4a"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -36,7 +36,7 @@ jobs:
       run:
         working-directory: apps/microwagers-web
     env:
-      NEXT_PUBLIC_MICROWAGERS_ADDRESS: "0xbe655aa17d1b4d31021791F0640a8c4677A11899"
+      NEXT_PUBLIC_MICROWAGERS_ADDRESS: "0x07D4eD4B2293faE326BaF9a943Ed3a56E04D8D4a"
       NEXT_PUBLIC_NETWORK_NAME: StudioNet
       NEXT_PUBLIC_SITE_URL: https://microwagers.vercel.app
     steps:

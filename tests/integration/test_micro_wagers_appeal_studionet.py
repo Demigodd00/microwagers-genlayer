@@ -18,17 +18,19 @@ def test_appeal_flow_with_bond_on_studionet():
     contract = factory.deploy(args=[0, APPEAL_WINDOW_SECS, RESOLUTION_TIMEOUT_SECS])
 
     accounts = get_accounts()
-    alice, bob = accounts[0], accounts[1]
+    alice, bob, charlie = accounts[0], accounts[1], accounts[2]
     bob_contract = contract.connect(bob)
+    charlie_contract = contract.connect(charlie)
 
     deadline = int(time.time()) + 70
 
     create_tx = contract.create_wager(
         args=[
-            "When validators resolve after the deadline, does the source page state that this domain is reserved for use in illustrative examples in documents?",
-            "Yes, the page states it is for use in illustrative examples",
-            "No, the page states something different",
+            "Do both source pages say the domain is for documentation examples without needing permission?",
+            "Yes — the page is for documentation examples",
+            "No — the page does not say that",
             "https://example.com/",
+            "https://example.net/",
             deadline,
         ]
     ).transact(value=STAKE)
@@ -52,25 +54,40 @@ def test_appeal_flow_with_bond_on_studionet():
     original_record = w_before["original_record"]
     assert len(original_record["source_digest"]) == 64
 
-    # Loser appeals with a bond equal to the stake
-    appealer_is_loser = bob.address.lower() == original_winner is False
+    # The losing participant escrows the bond; adjudication is a separate write.
     if original_winner == alice.address.lower():
         appealer_contract = bob_contract
+        appealer = bob
     else:
         appealer_contract = contract
+        appealer = alice
 
     appeal_tx = appealer_contract.appeal_wager(
         args=[wid, "Challenger statement: re-examine the source carefully; the accepted reading is wrong."]
     ).transact(value=STAKE)
     assert tx_execution_succeeded(appeal_tx)
 
+    queued = contract.get_wager(args=[wid]).call()
+    assert queued["appealed"] is True
+    assert queued["appeal_pending"] is True
+    assert queued["appeal_record"]["exists"] is False
+    assert queued["original_record"] == original_record
+    assert len(queued["appeal_statement"]) > 0
+
+    resolve_appeal_tx = charlie_contract.resolve_appeal(args=[wid]).transact()
+    assert tx_execution_succeeded(resolve_appeal_tx)
+
     w_after = contract.get_wager(args=[wid]).call()
-    assert w_after["appealed"] is True
-    assert len(w_after["appeal_statement"]) > 0
+    assert w_after["appeal_pending"] is False
     assert w_after["status"] in ("PROVISIONAL", "VOIDED")
     assert w_after["original_record"] == original_record
     assert w_after["appeal_record"]["exists"] is True
     assert len(w_after["appeal_record"]["source_digest"]) == 64
+    assert w_after["appeal_record"]["source_digest"] == original_record["source_digest"]
+    assert w_after["appeal_record"]["provenance"] == "GENLAYER_VALIDATOR_REEVALUATED_ORIGINAL_SNAPSHOTS_NO_REFETCH"
+    assert [source["snapshot_ref"] for source in w_after["appeal_record"]["sources"]] == [
+        source["digest"] for source in original_record["sources"]
+    ]
 
     if w_after["status"] == "VOIDED":
         # Appeal overturned into refund: no winner, no pot bonus
@@ -91,16 +108,13 @@ def test_appeal_flow_with_bond_on_studionet():
         print("Appeal outcome: OVERTURNED (winner flipped)")
 
     # Second appeal must be rejected (one-shot right)
-    second_appeal_contract = (
-        bob_contract if appealer_contract is contract else contract
-    )
-    try:
-        tx = second_appeal_contract.appeal_wager(
-            args=[wid, "second appeal should fail"]
-        ).transact(value=STAKE)
-        assert not tx_execution_succeeded(tx)
-    except Exception:
-        pass
+    second_appeal_account = alice if appealer is bob else bob
+    second_appeal_contract = contract.connect(second_appeal_account)
+    tx = second_appeal_contract.appeal_wager(
+        args=[wid, "second appeal should be refunded"]
+    ).transact(value=STAKE)
+    assert tx_execution_succeeded(tx)
+    assert int(contract.get_claimable_balance(args=[second_appeal_account.address]).call()) >= STAKE
 
     # Payout remains locked until the appeal window expires.
     if w_after["status"] == "PROVISIONAL":
@@ -112,3 +126,8 @@ def test_appeal_flow_with_bond_on_studionet():
         claim_tx = winner_contract.claim(args=[wid]).transact()
         assert tx_execution_succeeded(claim_tx)
         assert contract.get_wager(args=[wid]).call()["status"] == "SETTLED"
+
+    for account in (alice, bob):
+        balance = int(contract.get_claimable_balance(args=[account.address]).call())
+        if balance > 0:
+            assert tx_execution_succeeded(contract.connect(account).claim_funds().transact())

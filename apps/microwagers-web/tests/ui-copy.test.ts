@@ -12,11 +12,12 @@ const taker = `0x${"2".repeat(40)}` as const;
 const emptyRecord: AdjudicationRecord = {
   exists: false, outcome: "", outcome_label: "", winner: "", confidence_bucket: "0", reason: "",
   source_url: "https://example.com/", source_digest: "", source_snapshot: "", source_bytes: "0", source_chars: "0",
+  sources: [],
   judged_at_unix: "0", judged_at_iso: "", provenance: "",
 };
 const wager: WagerView = {
   id: "w-3", status: "OPEN", question: "Does the public source support side A?", creator_side: "Side A", taker_side: "Side B",
-  stake_atto: "1000000000000000", outcome_label: "", appealed: false, source_url: "https://example.com/", creator, taker: creator,
+  stake_atto: "1000000000000000", outcome_label: "", appealed: false, appeal_pending: false, appeal_pending_since_unix: "0", appeal_recovery_unix: "0", source_url: "https://example.com/", source_url_2: "https://example.net/", creator, taker: creator,
   deadline_unix: String(Math.floor(Date.now() / 1000) + 600), created_at_iso: new Date().toISOString(), winner: creator,
   confidence_bucket: "0", verdict_reason: "", resolved_at_unix: "0", resolved_at_iso: "", appeal_deadline_unix: "0",
   resolution_recovery_unix: String(Math.floor(Date.now() / 1000) + 1200), recoverable: false,
@@ -40,9 +41,10 @@ test("the home page identifies the creator, network, value boundary, and example
 
 test("the creation flow keeps source and stake disclosures visible", () => {
   const html = renderToStaticMarkup(createElement(CreateMarket, { session: null, onCreated: () => {} }));
-  assert.match(html, /Public HTTPS resolution source/);
+  assert.match(html, /Public HTTPS source 1/);
+  assert.match(html, /Public HTTPS source 2/);
   assert.match(html, /Test stake in GEN/);
-  assert.match(html, /when resolution is requested after the deadline/);
+  assert.match(html, /Both must support the same position with exact quotations/);
   assert.match(html, /Example Domain/);
   assert.doesNotMatch(html, /At the deadline, does the source page state/);
 });
@@ -61,6 +63,24 @@ test("a stuck live wager exposes the permissionless timeout refund", () => {
   assert.match(html, /Resolve or recover the stakes/);
 });
 
+test("a bonded appeal is separately resolved from frozen evidence and blocks payout", () => {
+  const pending = {
+    ...wager,
+    status: "PROVISIONAL",
+    appealed: true,
+    appeal_pending: true,
+    appeal_recovery_unix: String(Math.floor(Date.now() / 1000) + 600),
+    appeal_deadline_unix: String(Math.floor(Date.now() / 1000) - 1),
+    claimable: false,
+    winner: creator,
+  };
+  const html = renderDetail(pending, taker);
+  assert.match(html, /Appeal queued/);
+  assert.match(html, /Resolve appeal against frozen evidence/);
+  assert.match(html, /original frozen evidence/);
+  assert.doesNotMatch(html, /Claim 0\.002 test GEN/);
+});
+
 test("original and appeal source fingerprints remain visible", () => {
   const record = {
     ...emptyRecord,
@@ -74,16 +94,23 @@ test("original and appeal source fingerprints remain visible", () => {
     source_snapshot: "Example source snapshot.",
     source_bytes: "1256",
     source_chars: "1256",
+    sources: [
+      { url: "https://example.com/", digest: "c".repeat(64), snapshot: "Example source snapshot.", bytes: 1256, chars: 1256, finding: "A" as const, citation: "Example source snapshot." },
+      { url: "https://example.net/", digest: "d".repeat(64), snapshot: "Example source snapshot.", bytes: 1256, chars: 1256, finding: "A" as const, citation: "Example source snapshot." },
+    ],
     judged_at_unix: "2000000000",
     judged_at_iso: "2033-05-18T03:33:20+00:00",
-    provenance: "GENLAYER_VALIDATOR_FETCH_AT_ADJUDICATION",
+    provenance: "GENLAYER_VALIDATOR_DUAL_SOURCE_FETCH_AND_SNAPSHOT",
   };
-  const appealed = { ...record, source_digest: "b".repeat(64), provenance: "GENLAYER_VALIDATOR_REFETCH_AT_APPEAL" };
+  const appealed = { ...record, source_digest: "b".repeat(64), sources: record.sources.map((source) => ({ url: source.url, digest: source.digest, snapshot_ref: source.digest, finding: "A" as const, citation: source.citation })), provenance: "GENLAYER_VALIDATOR_REEVALUATED_ORIGINAL_SNAPSHOTS_NO_REFETCH" };
   const html = renderDetail({ ...wager, status: "PROVISIONAL", taker, winner: creator, original_record: record, appeal_record: appealed }, creator);
   assert.match(html, /Immutable adjudication records/);
   assert.match(html, /SHA-256 a{12}…a{8}/);
   assert.match(html, /SHA-256 b{12}…b{8}/);
-  assert.match(html, /Stored source snapshot/);
+  assert.match(html, /original snapshots reused; no refetch/);
+  assert.match(html, /Supports creator position/);
+  assert.match(html, /exact adjudicated snapshot/);
+  assert.match(html, /Frozen snapshot reference/);
 });
 
 test("an unmatched cancellation shows the refunded stake rather than a theoretical pot", () => {

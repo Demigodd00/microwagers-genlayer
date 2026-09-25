@@ -155,10 +155,11 @@ def verify_deployed_configuration(client, address: str, account, args: argparse.
         "resolution_timeout_secs": str(args.resolution_timeout_secs),
         "experimental": True,
         "max_page_size": "25",
-        "max_source_bytes": "100000",
+        "max_source_bytes": "25000",
         "max_source_chars": "8000",
-        "source_policy": "STRICT_UTF8_SHA256_VALIDATOR_FETCH_AND_SNAPSHOT",
-        "version": "1.2.1-studionet",
+        "max_sources": "2",
+        "source_policy": "TWO_DISTINCT_HOSTS_UNANIMOUS_CITED_FINDINGS_FROZEN_APPEALS",
+        "version": "1.3.1-studionet",
     }
     if not isinstance(stats, dict) or any(stats.get(key) != value for key, value in expected.items()):
         raise RuntimeError("deployed settings do not match the requested release")
@@ -244,7 +245,7 @@ def main() -> None:
 
     record = {
         "contract": "MicroWagers",
-        "version": "1.2.1-studionet",
+        "version": "1.3.1-studionet",
         "network": network_name,
         "address": contract_address,
         "transaction_hash": str(tx_hash),
