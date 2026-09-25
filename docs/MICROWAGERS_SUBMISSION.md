@@ -13,22 +13,18 @@ Shipped MicroWagers V1.3.1 as a separate StudioNet Intelligent Contract deployme
 
 ## Evidence links
 
-Add the evidence types shown below. The repository is the required primary evidence; contract, release receipt, exact-address acceptance journal, and live app are supporting evidence.
+Attach links that identify this milestone's new deployment and code. The repository root and canonical app URL may already be present on the accepted Project submission and can be rejected as duplicate evidence; prefer the new contract address and commit-pinned file URLs below.
 
-1. Required — GitHub Repository
-   https://github.com/Demigodd00/microwagers-genlayer
-2. GenLayer Explorer Contract
+1. GenLayer Explorer Contract
    https://explorer-studio.genlayer.com/address/0x07D4eD4B2293faE326BaF9a943Ed3a56E04D8D4a
-3. GitHub File — exact deployed Intelligent Contract source
-   https://github.com/Demigodd00/microwagers-genlayer/blob/main/contracts/micro_wagers.py
-4. GitHub File — exact deployment receipt and constructor settings
-   https://github.com/Demigodd00/microwagers-genlayer/blob/main/deployments/micro_wagers_studionet.json
-5. GitHub File — exact-address, multi-wallet acceptance journal
-   https://github.com/Demigodd00/microwagers-genlayer/blob/main/deployments/micro_wagers_milestone1_v131_acceptance.json
-6. Other — live application
-   https://microwagers.vercel.app
-7. Other — milestone release notes
-   https://github.com/Demigodd00/microwagers-genlayer/blob/main/docs/MICROWAGERS_RELEASE.md
+2. GitHub File — exact deployed Intelligent Contract source
+   https://github.com/Demigodd00/microwagers-genlayer/blob/42cb16e6f45186329259debb7359b00efdf6b1ce/contracts/micro_wagers.py
+3. GitHub File — exact deployment receipt and constructor settings
+   https://github.com/Demigodd00/microwagers-genlayer/blob/42cb16e6f45186329259debb7359b00efdf6b1ce/deployments/micro_wagers_studionet.json
+4. GitHub File — exact-address, multi-wallet acceptance journal
+   https://github.com/Demigodd00/microwagers-genlayer/blob/42cb16e6f45186329259debb7359b00efdf6b1ce/deployments/micro_wagers_milestone1_v131_acceptance.json
+5. Other — this production deployment
+   https://microwagers-ewpgrbe74-demi17.vercel.app
 
 ## Reviewer notes
 

@@ -3,11 +3,11 @@
   "project_name": "microwagers",
   "vercel_team": "demi17",
   "production_url": "https://microwagers.vercel.app",
-  "deployment_url": "https://microwagers-30a6z0k2n-demi17.vercel.app",
-  "deployment_id": "dpl_9pW6ybMiiymvPVLq8rm5mfWMND5L",
+  "deployment_url": "https://microwagers-ewpgrbe74-demi17.vercel.app",
+  "deployment_id": "dpl_vTJCsg9oUc4uRwQw8qnfroAPVJsj",
   "source_repository": "https://github.com/Demigodd00/microwagers-genlayer",
   "source_branch": "main",
-  "source_commit": "039f19ef85f9e6c309d7e0653648f01f34682bb1",
+  "source_commit": "42cb16e6f45186329259debb7359b00efdf6b1ce",
   "root_directory": "apps/microwagers-web",
   "framework": "Next.js",
   "node_engine": "22.x",
@@ -18,8 +18,8 @@
     "NEXT_PUBLIC_NETWORK_NAME": "StudioNet"
   },
   "secret_environment_uploaded": false,
-  "deployment_method": "Vercel CLI production deployment from the dedicated MicroWagers repository at source_commit",
-  "provenance_note": "Production was built from the verified V1.3.1 milestone source commit. The existing production domain was retained; the app now targets the separately deployed V1.3.1 contract. The previously accepted V1.2.1 contract remains deployed and preserved in deployment history.",
+  "deployment_method": "Vercel Git integration production build from the dedicated MicroWagers repository",
+  "provenance_note": "Production was built from source_commit after Vercel was connected to the dedicated MicroWagers repository. The existing production domain was retained; the app now targets the separately deployed V1.3.1 contract. The previously accepted V1.2.1 contract remains deployed and preserved in deployment history.",
   "verification": {
     "home_status": 200,
     "status_page_status": 200,
@@ -34,5 +34,9 @@
     "claimable_and_appeal_ui_tests_passed": true,
     "security_headers_checked": true
   },
-  "verified_at": "2026-09-25T20:44:52Z"
+  "github_ci": {
+    "conclusion": "success",
+    "commit": "42cb16e6f45186329259debb7359b00efdf6b1ce"
+  },
+  "verified_at": "2026-09-25T20:54:16Z"
 }
