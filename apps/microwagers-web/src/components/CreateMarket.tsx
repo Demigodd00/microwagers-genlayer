@@ -128,7 +128,7 @@ export default function CreateMarket({ session, onCreated }: { session: WalletSe
               <div className="review-wide"><dt>Source 1</dt><dd>{sourceUrl}</dd></div>
               <div className="review-wide"><dt>Source 2</dt><dd>{sourceUrl2}</dd></div>
             </dl>
-            <div className="callout"><strong>Evidence rule becomes permanent</strong><p>Both domains must independently support the same side with source-verified quotes. Conflicting or unclear evidence voids the wager. Appeals review these saved pages, not a fresh fetch.</p></div>
+            <div className="callout"><strong>Evidence rule becomes permanent</strong><p>Both pages must support the same side with exact quotes. Different hosts do not verify publisher independence. Conflicting findings void the wager; failed resolution has timeout recovery. Appeals use the saved pages.</p></div>
             <div className="form-actions"><button className="button button-secondary" onClick={() => setReviewing(false)} disabled={busy}>Edit</button><button className="button button-primary" onClick={() => void submit()} disabled={busy}>{CONTRACT_READY ? "Confirm test stake" : "Preview only"}</button></div>
           </div>
         ) : (

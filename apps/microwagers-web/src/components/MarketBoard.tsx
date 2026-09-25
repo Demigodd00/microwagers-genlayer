@@ -23,6 +23,7 @@ import {
   type WalletSession,
 } from "@/lib/contract";
 import { formatCountdown, marketShareUrl, rereadUntilStatusMatches, transactionPending } from "@/lib/ui-state";
+import { isUnmatched, sourceAgreement, verdictExplanation } from "@/lib/evidence";
 import TxNotice from "./TxNotice";
 
 const emptyRecord: AdjudicationRecord = {
@@ -82,7 +83,7 @@ function statusLabel(status: string): string {
 }
 
 export function stakePresentation(wager: WagerView): { amountAtto: string; label: string } {
-  const unmatched = wager.taker.toLowerCase() === wager.creator.toLowerCase();
+  const unmatched = isUnmatched(wager);
   if (wager.status === "OPEN") return { amountAtto: wager.stake_atto, label: "creator stake" };
   if (wager.status === "VOIDED") {
     return { amountAtto: unmatched ? wager.stake_atto : String(BigInt(wager.stake_atto) * 2n), label: "refunded" };
@@ -224,7 +225,7 @@ export function MarketDetail({ session, wager: storedWager, onRefresh }: { sessi
   const account = session?.address.toLowerCase() ?? "";
   const creator = wager.creator.toLowerCase();
   const taker = wager.taker.toLowerCase();
-  const unmatched = taker === creator;
+  const unmatched = isUnmatched(wager);
   const winner = wager.winner.toLowerCase();
   const isCreator = account !== "" && account === creator;
   const isTaker = account !== "" && account === taker && taker !== creator;
@@ -262,23 +263,23 @@ export function MarketDetail({ session, wager: storedWager, onRefresh }: { sessi
         <button className="button button-secondary" onClick={() => void copyLink()} disabled={busy}>Copy link</button>
       </header>
 
-      <div className="source-card"><span>Agreed resolution sources</span><a href={wager.source_url} target="_blank" rel="noreferrer">1 · {wager.source_url} ↗</a><a href={wager.source_url_2} target="_blank" rel="noreferrer">2 · {wager.source_url_2} ↗</a><small>Validators fetch both after the deadline. Both must agree with verifiable quotations, or the wager is refunded.</small></div>
+      <div className="source-card"><span>Agreed resolution sources</span><a href={wager.source_url} target="_blank" rel="noreferrer">1 · {wager.source_url} ↗</a><a href={wager.source_url_2} target="_blank" rel="noreferrer">2 · {wager.source_url_2} ↗</a><small>Both must support the same side with exact quotations. Different hosts do not guarantee independent publishers.</small></div>
 
       <div className="sides-grid">
         <div className={wager.outcome_label === wager.creator_side ? "winning-side" : ""}><span>Creator · {shortenAddress(wager.creator)}</span><strong>{wager.creator_side}</strong></div>
         <div className={wager.outcome_label === wager.taker_side ? "winning-side" : ""}><span>{wager.status === "OPEN" ? "Open side" : unmatched ? "No taker" : `Taker · ${shortenAddress(wager.taker)}`}</span><strong>{wager.taker_side}</strong></div>
       </div>
 
-      {wager.status === "VOIDED" ? <div className="callout"><strong>Wager voided</strong><p>{wager.verdict_reason || "The wager was cancelled or could not be determined. Test stakes are available to claim."}</p></div> : null}
+      {wager.status === "VOIDED" ? <div className="callout"><strong>Wager voided</strong><p>{unmatched ? "The unmatched wager was cancelled. The creator's stake was credited for withdrawal." : "Both stakes were credited for withdrawal. Connect your wallet to check any remaining claimable GEN."}</p></div> : null}
       {wager.appeal_pending ? <div className="callout appeal-pending-callout"><strong>Appeal queued</strong><p>The bonded appeal is being checked against the original frozen evidence. Either participant or a third party can resolve it; the original verdict and both source snapshots remain preserved.</p></div> : null}
 
       <div className="metric-row">
         <div><span>Test GEN</span><strong>{formatGen(stake.amountAtto)}</strong><small>{stake.label}</small></div>
         <div><span>Deadline</span><strong>{pastDeadline ? "Reached" : formatCountdown(wager.deadline_unix, now)}</strong><small>{new Date(Number(wager.deadline_unix) * 1000).toLocaleString()}</small></div>
-        <div><span>Confidence</span><strong>{wager.confidence_bucket === "0" ? "—" : `${wager.confidence_bucket}%`}</strong><small>validator bucket</small></div>
+        <div><span>Source agreement</span><strong>{sourceAgreement(wager.appeal_record.exists ? wager.appeal_record : wager.original_record)}</strong><small>cited findings, not a probability</small></div>
       </div>
 
-      {wager.verdict_reason ? <section className="verdict-card"><p className="eyebrow">Validator verdict</p><h3>{wager.outcome_label || "Undetermined"}</h3><p>{wager.verdict_reason}</p>{wager.appeal_statement ? <blockquote><strong>Appeal:</strong> {wager.appeal_statement}</blockquote> : null}</section> : null}
+      {wager.verdict_reason ? <section className="verdict-card"><p className="eyebrow">{wager.original_record.exists ? "Validator verdict" : "Recovery result"}</p><h3>{wager.outcome_label || "Undetermined"}</h3><p>{verdictExplanation(wager.verdict_reason)}</p>{wager.appeal_statement ? <blockquote><strong>Appeal:</strong> {wager.appeal_statement}</blockquote> : null}</section> : null}
 
       {wager.original_record.exists || wager.appeal_record.exists ? (
         <section className="audit-trail" aria-label="Adjudication audit trail">
@@ -331,10 +332,11 @@ function AuditRecord({ label, record }: { label: string; record: AdjudicationRec
   return (
     <article>
       <span>{label}</span>
-      <strong>{record.outcome_label || "Refund"} · {record.confidence_bucket}%</strong>
+      <strong>{record.outcome_label || "Refund"} · {sourceAgreement(record)}</strong>
       <code title={record.source_digest}>Combined source SHA-256 {digest}</code>
       <small>{record.judged_at_iso ? new Date(record.judged_at_iso).toLocaleString() : ""} · {reused ? "original snapshots reused; no refetch" : `${record.sources?.length ?? 0} source snapshots recorded`}</small>
-      <p>{record.reason}</p>
+      <p>{verdictExplanation(record.reason)}</p>
+      <details><summary>Raw on-chain wording</summary><p>{record.reason}</p><small>Legacy policy bucket: {record.confidence_bucket}. This is a fixed agreement flag, not measured confidence. Host diversity does not verify publisher independence.</small></details>
       <div className="evidence-sources">
         {(record.sources ?? []).map((source, index) => (
           <section key={`${source.digest}-${index}`}>

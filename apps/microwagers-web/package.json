@@ -1,6 +1,6 @@
 {
   "name": "microwagers-web",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "author": "demigodd00",
   "license": "UNLICENSED",
   "private": true,
@@ -14,6 +14,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
+    "verify:receipts": "tsx scripts/check-recorded-receipts.ts",
     "check": "pnpm test && pnpm typecheck && pnpm build",
     "audit:prod": "pnpm audit --prod --audit-level=high"
   },

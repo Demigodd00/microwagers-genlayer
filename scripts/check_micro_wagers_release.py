@@ -26,7 +26,9 @@ ADDRESS_PATTERN = re.compile(r"^0x[0-9a-fA-F]{40}$")
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--skip-web", action="store_true")
-    parser.add_argument("--require-hosting", action="store_true")
+    hosting = parser.add_mutually_exclusive_group()
+    hosting.add_argument("--require-hosting", action="store_true")
+    hosting.add_argument("--skip-hosting", action="store_true", help="Offline CI: production is verified separately after deployment")
     return parser.parse_args()
 
 
@@ -213,7 +215,9 @@ def verify_hosting(required: bool, deployment: dict | None) -> bool:
         "correct source commit": re.fullmatch(r"[0-9a-f]{40}", str(hosting.get("source_commit", ""))) is not None,
         "matching contract": hosting.get("contract_address", "").lower() == expected_address.lower(),
         "health identifies product": health.get("product") == "MicroWagers",
-        "health identifies release": health.get("release") == "1.3.1",
+        "health identifies recorded hosting release": health.get("release") == hosting.get("app_release", "1.3.1"),
+        "health identifies contract release": health.get("contractRelease") == (deployment or {}).get("version")
+        or (hosting.get("app_release", "1.3.1") == "1.3.1" and health.get("contractRelease") is None),
         "health identifies StudioNet": health.get("network") == "StudioNet",
         "health is release-ready": health.get("readyForStudioNetTesting") is True,
     }
@@ -227,6 +231,7 @@ def main() -> int:
     results = [
         run_check("GenVM lint and validation", ["genvm-lint", "check", str(CONTRACT_PATH)]),
         run_check("direct contract tests", [sys.executable, "-m", "pytest", str(DIRECT_TEST_PATH), "-q"]),
+        run_check("acceptance resume regressions", [sys.executable, "-m", "pytest", str(ROOT / "tests" / "unit"), "-q"]),
         run_check(
             "release script compilation",
             [sys.executable, "-m", "py_compile", str(DEPLOY_SCRIPT_PATH), str(ACCEPTANCE_SCRIPT_PATH)],
@@ -250,7 +255,10 @@ def main() -> int:
 
     records_ok, deployment = verify_records()
     results.append(records_ok)
-    results.append(verify_hosting(options.require_hosting, deployment))
+    if options.skip_hosting:
+        print("\nSKIPPED: live hosting (offline CI; not production verification)")
+    else:
+        results.append(verify_hosting(options.require_hosting, deployment))
     print("\nMicroWagers release gate: " + ("PASS" if all(results) else "FAIL"))
     return 0 if all(results) else 1
 

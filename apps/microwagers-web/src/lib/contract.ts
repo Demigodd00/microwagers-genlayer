@@ -1,6 +1,6 @@
 import { chains, createClient } from "genlayer-js";
 import { TransactionStatus } from "genlayer-js/types";
-import { assertSuccessfulExecution } from "./receipt";
+import { assertSuccessfulAction, ContractActionError } from "./receipt";
 import { oneTransactionAtATime } from "./ui-state";
 import { connectStudioWallet, type EthereumProvider, type WalletOption } from "./wallet";
 
@@ -170,6 +170,7 @@ export function shortenAddress(value: string): string {
 }
 
 export function friendlyError(error: unknown): string {
+  if (error instanceof ContractActionError) return error.message;
   const message = error instanceof Error ? error.message : String(error);
   const expected = message.match(/\[EXPECTED\]\s*([^"\n]+)/);
   if (expected?.[1]) return expected[1].trim();
@@ -207,35 +208,26 @@ export async function connectWallet(wallet: WalletOption): Promise<WalletSession
   };
 }
 
-async function waitForSuccess(hash: unknown, onProgress: (progress: TxProgress) => void): Promise<void> {
+async function waitForSuccess(hash: unknown, method: string, onProgress: (progress: TxProgress) => void): Promise<void> {
   const txHash = String(hash);
   onProgress({ state: "finalizing", label: "GenLayer validators are finalizing the transaction", hash: txHash });
   const receipt = await readClient.waitForTransactionReceipt({ hash: hash as never, status: TransactionStatus.FINALIZED, retries: 120 });
-  assertSuccessfulExecution(receipt);
+  try { assertSuccessfulAction(receipt, method); }
+  finally { if (typeof window !== "undefined") window.dispatchEvent(new Event("microwagers:refresh")); }
   onProgress({ state: "confirmed", label: "Confirmed by GenLayer validators", hash: txHash });
 }
 
 async function write(session: WalletSession, functionName: string, args: unknown[], value: bigint, onProgress: (progress: TxProgress) => void): Promise<string> {
   return oneTransactionAtATime(session.address, async () => {
     let txHash: string | undefined;
-    const claimableBefore = value > 0n
-      ? await getClaimableBalance(session.address).catch(() => null)
-      : null;
     onProgress({ state: "awaiting-signature", label: "Confirm this transaction in your wallet" });
     try {
       const hash = await session.client.writeContract({ address: contractAddress(), functionName, args: args as never[], value });
       txHash = String(hash);
       onProgress({ state: "submitted", label: "Transaction submitted", hash: txHash });
-      await waitForSuccess(hash, onProgress);
+      await waitForSuccess(hash, functionName, onProgress);
       if (functionName === "appeal_wager") {
         onProgress({ state: "confirmed", label: "Bond locked; appeal queued for separate resolution", hash: txHash });
-      }
-      if (typeof window !== "undefined") window.dispatchEvent(new Event("microwagers:refresh"));
-      if (value > 0n && claimableBefore !== null) {
-        const claimableAfter = await getClaimableBalance(session.address).catch(() => claimableBefore);
-        if (claimableAfter > claimableBefore) {
-          onProgress({ state: "confirmed", label: `${formatGen(claimableAfter - claimableBefore)} test GEN is safely claimable below.`, hash: txHash });
-        }
       }
       return txHash;
     } catch (error) {

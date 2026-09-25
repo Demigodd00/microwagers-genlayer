@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
 import MicroWagersApp from "../src/components/MicroWagersApp";
 import CreateMarket from "../src/components/CreateMarket";
 import { MarketDetail, stakePresentation } from "../src/components/MarketBoard";
@@ -17,7 +18,7 @@ const emptyRecord: AdjudicationRecord = {
 };
 const wager: WagerView = {
   id: "w-3", status: "OPEN", question: "Does the public source support side A?", creator_side: "Side A", taker_side: "Side B",
-  stake_atto: "1000000000000000", outcome_label: "", appealed: false, appeal_pending: false, appeal_pending_since_unix: "0", appeal_recovery_unix: "0", source_url: "https://example.com/", source_url_2: "https://example.net/", creator, taker: creator,
+  stake_atto: "1000000000000000", outcome_label: "", appealed: false, appeal_pending: false, appeal_pending_since_unix: "0", appeal_recovery_unix: "0", source_url: "https://example.com/", source_url_2: "https://example.net/", creator, taker: "",
   deadline_unix: String(Math.floor(Date.now() / 1000) + 600), created_at_iso: new Date().toISOString(), winner: creator,
   confidence_bucket: "0", verdict_reason: "", resolved_at_unix: "0", resolved_at_iso: "", appeal_deadline_unix: "0",
   resolution_recovery_unix: String(Math.floor(Date.now() / 1000) + 1200), recoverable: false,
@@ -111,6 +112,25 @@ test("original and appeal source fingerprints remain visible", () => {
   assert.match(html, /Supports creator position/);
   assert.match(html, /exact adjudicated snapshot/);
   assert.match(html, /Frozen snapshot reference/);
+  assert.match(html, /2 \/ 2 agree/);
+  assert.doesNotMatch(html, /90%|validator bucket|<span>Confidence/);
+});
+
+test("actual StudioNet cancellation and settlement records render truthful amounts and agreement", () => {
+  const journal = JSON.parse(readFileSync(new URL("../../../deployments/micro_wagers_milestone1_v131_acceptance.json", import.meta.url), "utf8"));
+  const cancelled = journal.assertions["cancellation-voided"].observed as WagerView;
+  assert.equal(cancelled.taker, "");
+  assert.equal(stakePresentation(cancelled).amountAtto, "1000000000000000");
+  const cancellationHtml = renderDetail(cancelled, null);
+  assert.match(cancellationHtml, /No taker/);
+  assert.doesNotMatch(cancellationHtml, /0\.002|Taker ·/);
+  const settled = journal.assertions["lifecycle-settled"].observed as WagerView;
+  const html = renderDetail(settled, null);
+  assert.match(html, /2 \/ 2 agree/);
+  assert.match(html, /Raw on-chain wording/);
+  assert.doesNotMatch(html, /70%|validator bucket/);
+  assert.equal(stakePresentation({ ...cancelled, taker }).amountAtto, "2000000000000000");
+  assert.equal(stakePresentation({ ...cancelled, taker: cancelled.creator }).amountAtto, "1000000000000000");
 });
 
 test("an unmatched cancellation shows the refunded stake rather than a theoretical pot", () => {

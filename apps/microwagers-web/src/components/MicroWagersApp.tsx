@@ -8,7 +8,7 @@ export default function MicroWagersApp() {
         <div className="hero-copy">
           <div className="hero-kicker"><span />MicroWagers by demigodd00 · source-bound peer predictions</div>
           <h1>Make a call.<br />Name the source.</h1>
-          <p>Two sides stake test GEN. After the deadline, GenLayer validators fetch the chosen source and settle the result.</p>
+          <p>Two sides stake test GEN. After the deadline, GenLayer validators compare two agreed sources to decide the result.</p>
           <div className="hero-actions">
             <Link className="button button-primary button-large" href="/markets/new">Post a wager <span>→</span></Link>
             <Link className="button button-secondary button-large" href="/markets">Browse markets</Link>

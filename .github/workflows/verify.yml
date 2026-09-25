@@ -27,7 +27,9 @@ jobs:
       - name: Prepare pinned GenVM runner
         run: python scripts/prepare_gltest_runner.py
       - name: Run exact-release gate
-        run: python scripts/check_micro_wagers_release.py --skip-web --require-hosting
+        # Production can still be building this commit. Verify it separately
+        # after deployment; CI validates code and immutable evidence offline.
+        run: python scripts/check_micro_wagers_release.py --skip-web --skip-hosting
 
   frontend:
     runs-on: ubuntu-latest

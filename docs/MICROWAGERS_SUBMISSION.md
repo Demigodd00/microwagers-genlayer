@@ -5,11 +5,11 @@ Use this for the existing accepted MicroWagers project's Milestone flow, not as 
 ## Milestone form
 
 - Contribution date: 25/09/2026
-- Title: Dual-source adjudication and failure-safe settlement
+- Title: Dual-source adjudication, frozen appeals and claimable refunds
 - Contribution type: Builder
 - Notes / description:
 
-Shipped MicroWagers V1.3.1 as a separate StudioNet Intelligent Contract deployment. Each wager now pins two HTTPS sources on distinct hosts. GenLayer validators independently fetch both after the deadline, record source-specific findings with exact citations, and settle only when both sources agree decisively; ambiguous or unverifiable evidence refunds both sides. The release adds retryable, separately resolved appeals against frozen original snapshots, timeout recovery for pending appeals, and claimable GEN accounting so failed payable calls, refunds, and payouts cannot silently strand participant value. The app now exposes source provenance, pending appeal actions, claimable balances, and contract accounting. Exact-address acceptance passed on StudioNet with two participant wallets and an independent observer, covering creation, matching, cancellation, invalid payable refunds, dual-source resolution, appeal, payout lock, timeout refunds, and withdrawals. Final on-chain accounting showed zero escrow and zero liabilities. StudioNet test GEN has no monetary value.
+MicroWagers now uses a separate V1.3.1 StudioNet contract for two-source adjudication. Validators fetch two pinned HTTPS pages on distinct hosts, record exact citations, and select a winner only when both findings agree. Appeals are queued separately and review frozen original snapshots without overwriting either record. Cancellation, settlement, and known invalid payable actions credit GEN for withdrawal; unresolved wagers and pending appeals have timeout recovery. The V1.3.2 app checks action results, displays source agreement instead of a confidence percentage, and shows correct cancellation amounts. Live tests used two participant wallets and a third observer wallet for matching, resolution, appeal, cancellation, timeout refunds, and withdrawals. Early-payout guards and interrupted-run recovery are tested locally. The demo sources returned identical content, so this proves two-host retrieval, not publisher independence. StudioNet test GEN has no monetary value.
 
 ## Evidence links
 
@@ -23,11 +23,13 @@ Attach links that identify this milestone's new deployment and code. The reposit
    https://github.com/Demigodd00/microwagers-genlayer/blob/42cb16e6f45186329259debb7359b00efdf6b1ce/deployments/micro_wagers_studionet.json
 4. GitHub File — exact-address, multi-wallet acceptance journal
    https://github.com/Demigodd00/microwagers-genlayer/blob/42cb16e6f45186329259debb7359b00efdf6b1ce/deployments/micro_wagers_milestone1_v131_acceptance.json
-5. Other — this production deployment
-   https://microwagers-ewpgrbe74-demi17.vercel.app
+5. Other — public milestone walkthrough (no Vercel login)
+   https://microwagers.vercel.app/milestone
 
 ## Reviewer notes
 
 The contribution is distinguishable from the accepted V1.2.1 project: it deploys contract 0x07D4…8D4a with source hash 2ed0386b…e736d6, while the accepted deployment remains at 0xbe655…11899. The new acceptance journal proves the exact deployment and records three markets: w-1 cancellation, w-2 unresolved timeout refund, and w-3 decisive dual-source result plus a separately preserved appeal. Both configured sources are distinct hosts and each has its own finding and exact citation. The sources happened to return the same 559-byte Example Domain content in this test; this is disclosed in the release notes rather than presented as two different page contents.
 
-The app remains at https://microwagers.vercel.app; this milestone updates that live app to V1.3.1 only after production health and contract-address checks pass. The milestone itself must be submitted manually by the project owner in GenLayer Portal. No transaction, captcha, or Portal submission is performed by this guide.
+The app remains at https://microwagers.vercel.app. App V1.3.2 uses the same V1.3.1 contract; the review fixes did not redeploy or migrate participant funds. The public milestone page documents distinct new work rather than changing a URL to disguise duplicate evidence. Do not submit a deployment-specific Vercel URL: those can require team login. If Portal requires a GitHub Repository type, use the repository root in that field; the pinned links above are GitHub File evidence. If an already-used root is rejected, attach this to the existing accepted project's Milestone flow or ask the steward how to associate it, rather than creating another Project.
+
+The milestone itself must be submitted manually by the project owner in GenLayer Portal. No transaction, captcha, or Portal submission is performed by this guide.

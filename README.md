@@ -20,9 +20,11 @@ This is the dedicated public source and review repository for the accepted Micro
 
 ## Why GenLayer is central
 
-The contract does not receive a winner from an administrator or conventional oracle. Each matched wager pins two HTTPS source URLs on distinct hosts. After its deadline, GenLayer validators fetch both pages, produce source-specific findings with citations that must exactly occur in the fetched text, and decide only when both sources agree decisively. Disagreement, unverifiable evidence, or insufficient confidence voids the wager and credits both stakes for withdrawal.
+The contract does not receive a winner from an administrator or conventional oracle. Each matched wager pins two HTTPS source URLs on distinct hosts. After its deadline, GenLayer validators fetch both pages, produce source-specific findings with citations that must exactly occur in the fetched text, and select a winner only when both sources agree. Conflicting or neutral findings credit both stakes for withdrawal. Retrieval or consensus failures can be retried or recovered after the timeout. Host diversity does not prove publisher independence.
 
-Each decision preserves the two exact source snapshots, their individual fingerprints, findings and citations, plus the outcome, confidence, reason, winner, and judgment time. One bonded appeal is queued separately; any wallet may resolve it against the stored original snapshots without refetching. The original and appeal records are retained independently. Appeals cannot block payout forever: timed-out appeals can be voided with their bond returned. All payouts and refunds first become on-chain claimable balances, then wallets withdraw them; this prevents failed transfers from corrupting wager settlement. Any wallet can recover both stakes if original adjudication remains unresolved past its timeout.
+Each decision preserves the two exact source snapshots, fingerprints, findings and citations, plus the outcome, legacy policy bucket, reason, winner, and judgment time. The bucket is fixed at 70 for agreement and 0 otherwise, not measured confidence; the app displays source agreement instead. One bonded appeal is queued separately; any wallet may resolve it against the original snapshots without refetching. Both records are retained. Timed-out appeals can be voided with their bond credited for withdrawal. Payouts and refunds first become claimable balances. Known validation rejections in payable methods also credit the attached amount. This is not a guarantee for arbitrary malformed calls, VM failures, direct sends, or every possible native-transfer failure. Any wallet can recover both stakes if original adjudication remains unresolved past its timeout.
+
+App V1.3.2 corrects receipt handling and refund displays without changing contract V1.3.1. Start the public review at https://microwagers.vercel.app/milestone.
 
 ## Reviewer path
 
@@ -31,7 +33,7 @@ Each decision preserves the two exact source snapshots, their individual fingerp
 3. Open [w-2](https://microwagers.vercel.app/markets?wager=w-2) to inspect permissionless timeout recovery and both refunded stakes.
 4. Open [w-1](https://microwagers.vercel.app/markets?wager=w-1) to inspect cancellation and refund of an unmatched wager.
 5. Open the [status page](https://microwagers.vercel.app/status) and compare its configuration with the [Explorer contract](https://explorer-studio.genlayer.com/address/0x07D4eD4B2293faE326BaF9a943Ed3a56E04D8D4a).
-6. Review [`deployments/micro_wagers_milestone1_v131_acceptance.json`](deployments/micro_wagers_milestone1_v131_acceptance.json) for the exact-address, two-participant and independent-observer acceptance journal.
+6. Review [`deployments/micro_wagers_milestone1_v131_acceptance.json`](deployments/micro_wagers_milestone1_v131_acceptance.json) for the exact-address, two-participant and third-wallet acceptance journal. All three wallets belong to the test harness; this is not an independent security audit.
 
 No wallet connection is required to review these completed states.
 

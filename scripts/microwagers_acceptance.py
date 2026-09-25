@@ -424,15 +424,28 @@ class Acceptance:
             output({"waiting_for": reason, "seconds_remaining": round(remaining)})
             time.sleep(min(30, max(1, remaining + 1)))
 
+    def finalized_transfer(self, child_hash: str) -> dict:
+        # Native transfers finalize independently of their parent write. Resume
+        # the recorded child instead of reporting a transient pending state as loss.
+        for attempt in range(60):
+            child = self.rpc("eth_getTransactionByHash", [child_hash])["result"]
+            if child and child.get("status") == "FINALIZED":
+                if child.get("value_credited") is not True:
+                    raise AssertionError("Native transfer finalized without a value credit")
+                return child
+            if child and child.get("status") in {"CANCELED", "CANCELLED", "UNDETERMINED"}:
+                raise AssertionError(f"Native transfer ended with status {child['status']}")
+            if attempt < 59:
+                time.sleep(5)
+        raise RuntimeError("Native transfer is still pending; resume the same journal without resubmitting")
+
     def verify_transfer(self, step: str, recipient: str, value: int) -> None:
         entry = self.record["transactions"][step]
         receipt = self.rpc("eth_getTransactionByHash", [entry["transaction_hash"]])["result"]
         children = receipt.get("triggered_transactions", [])
         if len(children) != 1:
             raise AssertionError(f"{step}: expected exactly one native transfer")
-        child = self.rpc("eth_getTransactionByHash", [children[0]])["result"]
-        if not child or child.get("status") != "FINALIZED" or child.get("value_credited") is not True:
-            raise AssertionError(f"{step}: native transfer did not finalize and credit")
+        child = self.finalized_transfer(children[0])
         if child.get("to_address", "").lower() != recipient.lower() or int(child.get("value", 0)) != value:
             raise AssertionError(f"{step}: native transfer recipient or value differs")
         self.record.setdefault("transfer_checks", {})[step] = {
@@ -454,9 +467,7 @@ class Acceptance:
             raise AssertionError(f"{step}: expected {len(expected)} native transfers")
         observed = []
         for child_hash in children:
-            child = self.rpc("eth_getTransactionByHash", [child_hash])["result"]
-            if not child or child.get("status") != "FINALIZED" or child.get("value_credited") is not True:
-                raise AssertionError(f"{step}: a native transfer did not finalize and credit")
+            child = self.finalized_transfer(child_hash)
             observed.append((child.get("to_address", "").lower(), int(child.get("value", 0)), child_hash))
         expected_normalized = sorted((recipient.lower(), value) for recipient, value in expected)
         if sorted((recipient, value) for recipient, value, _ in observed) != expected_normalized:
@@ -606,6 +617,9 @@ class Acceptance:
             self.save()
             output({"assertion": "resolved-decisively", "passed": True, "winner": resolved["winner"]})
 
+        # These must also exist when the original ruling was saved in an earlier run.
+        original_record = resolved.get("original_record", {})
+        original_sources = original_record.get("sources", [])
         winner_role = "creator" if resolved["winner"].lower() == self.accounts["creator"].address.lower() else "tester"
         loser_role = "tester" if winner_role == "creator" else "creator"
         self.write(
@@ -624,7 +638,8 @@ class Acceptance:
             value=STAKE,
             role=loser_role,
         )
-        queued = self.read("get_wager", [wager_id])
+        historical_queue = self.record["assertions"].get("appeal-queued")
+        queued = historical_queue["observed"] if historical_queue else self.read("get_wager", [wager_id])
         if (
             queued.get("appealed") is not True
             or queued.get("appeal_pending") is not True
