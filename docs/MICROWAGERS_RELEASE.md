@@ -13,6 +13,8 @@ MicroWagers by demigodd00 is a peer-to-peer prediction app on GenLayer StudioNet
 | Version | `1.3.1-studionet` |
 | Deployment transaction | `0x6eb768a648e7fa378676695451fb45b46b4084a9b9b2cf0d5e57472ac0b9b962` |
 | Source SHA-256 | `2ed0386b511764e90c9c79f34aefc67cbb383a7d889051bcf901fab7e4e736d6` |
+| Vercel production deployment | `dpl_9pW6ybMiiymvPVLq8rm5mfWMND5L` |
+| Milestone source commit | `039f19ef85f9e6c309d7e0653648f01f34682bb1` |
 | Fee / appeal / unresolved timeout | `0 bps / 300 seconds / 600 seconds` |
 | Acceptance | `PASS` |
 
