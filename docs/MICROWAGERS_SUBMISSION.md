@@ -2,6 +2,16 @@
 
 Use this for the existing accepted MicroWagers project's Milestone flow, not as a new Project application. The accepted V1.2.1 contract remains deployed and preserved in the repository's deployment history; this contribution documents new, verifiable work in V1.3.1.
 
+## Exact comparison requested by the steward
+
+The original Project submission pinned its contract, deployment receipt, and acceptance journal to commit `f9bd31ef33a24c6a9514afeef58215629ab3d160`. The submitted milestone evidence was pinned to `42cb16e6f45186329259debb7359b00efdf6b1ce`. Compare those exact commits:
+
+https://github.com/Demigodd00/microwagers-genlayer/compare/f9bd31ef33a24c6a9514afeef58215629ab3d160...42cb16e6f45186329259debb7359b00efdf6b1ce
+
+GitHub reports six commits and 32 changed files in this range. It includes a substantive Intelligent Contract change (`contracts/micro_wagers.py`), a new V1.3.1 StudioNet deployment and exact-address acceptance journal, additional tests, and frontend changes. The new functionality is two-source cited adjudication, appeals against frozen original snapshots, claimable refund/payout accounting, and recovery paths. The original V1.2.1 deployment is preserved under `deployments/history/`. Later V1.3.2 interface/review fixes are after `42cb16e...` and are not silently substituted as the requested comparison endpoint.
+
+If the Portal's last rewarded Project record names a different base SHA, use that exact SHA as the comparison base instead; the repository does not contain the Portal's award metadata.
+
 ## Milestone form
 
 - Contribution date: 25/09/2026
@@ -14,6 +24,8 @@ MicroWagers now uses a separate V1.3.1 StudioNet contract for two-source adjudic
 ## Evidence links
 
 Attach links that identify this milestone's new deployment and code. The repository root and canonical app URL may already be present on the accepted Project submission and can be rejected as duplicate evidence; prefer the new contract address and commit-pinned file URLs below.
+
+First provide the exact GitHub comparison above in the steward response. If adding it as a separate evidence item, select `Other`; a GitHub compare page is neither a repository root nor a single file.
 
 1. GenLayer Explorer Contract
    https://explorer-studio.genlayer.com/address/0x07D4eD4B2293faE326BaF9a943Ed3a56E04D8D4a

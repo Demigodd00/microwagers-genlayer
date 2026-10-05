@@ -4,6 +4,8 @@ MicroWagers is a peer-to-peer prediction application for GenLayer StudioNet. Two
 
 This is the dedicated public source and review repository for the accepted MicroWagers project and its V1.3.1 milestone. The broader multi-product development repository remains at [Demigodd00/demigodd00-genlayer-apps](https://github.com/Demigodd00/demigodd00-genlayer-apps).
 
+For milestone novelty review, see the [exact comparison from the original Project evidence commit to the submitted milestone commit](https://github.com/Demigodd00/microwagers-genlayer/compare/f9bd31ef33a24c6a9514afeef58215629ab3d160...42cb16e6f45186329259debb7359b00efdf6b1ce). The baseline and scope are explained in [the milestone submission guide](docs/MICROWAGERS_SUBMISSION.md).
+
 ## Verified release
 
 | Item | Value |
